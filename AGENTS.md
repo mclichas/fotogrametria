@@ -139,9 +139,12 @@ Todas con licencia libre. No agregar dependencias sin verificar su licencia.
 
 **Rechazadas y por qué:**
 * `opencv-contrib-python` / SIFT → licencia y dependencia extra (D5/D6).
-* `pyransac3d` → licencia MIT pero proyecto poco mantenido; el ajuste cilíndrico se
-  implementa con `scipy` + RANSAC propio para evitar dependencia extra.
 * `python-pcl` → pesadilla de build en Windows, sin ventaja sobre Open3D.
+* ~~`pyransac3d` → proyecto poco mantenido~~ → **CORREGIDO 2026-10-05, ver §6 bis.**
+  La razón real era evitar una dependencia extra, no la actividad del proyecto:
+  `pyRANSAC-3D` tiene 670 stars, licencia Apache-2.0 (libre, D6 OK), es NumPy puro,
+  y commits de 2026-08. **No estaba poco mantenido.** La decisión queda abierta como **T22**:
+  usar `pyRANSAC-3D` para el ajuste cilíndrico de M5, o escribirlo con `scipy`.
 
 ### 5.1 Versiones verificadas en PyPI (2026-10-05)
 
@@ -246,6 +249,21 @@ o una máquina con más disco. Para esta máquina, MoGe-2 `vits`.
 Ningún modelo monocular garantiza el error < 1.5 % / ≤ 10 mm del SDD. Sobre la fidelidad
 hay que medir, no suponer: validar con una imagen real de obra con cotas conocidas (T3).
 
+**Advertencia de los propios autores de MoGe-2**, textual de su paper (NeurIPS 2025,
+"Limitations"): *"struggles with capturing extremely fine structures, such as thin lines
+and hair, and with maintaining straight and aligned structures under a significant scale
+difference between the foreground and background."*
+
+Esto es literalmente nuestro caso: un caño de 1/2" son 25 mm de radio, estructura delgada
+en un ambiente con fondo cercano y lejano. **El riesgo conocido del candidato principal
+está confirmado por su propia documentación.** Por eso T3 no es opcional antes de escribir
+M3: hay que medir si el error del radio del caño entra en 10 mm antes de construir el resto.
+
+Corolario sobre el modelo: `vits` (35M params) es el que entra en disco, pero es también
+el de menor detalle fino. Si `vits` falla la prueba de T3, el resultado no dice "MoGe-2
+no sirve", dice "hace falta `vitb` (400 MB) o MoGe-3". Distinguir esos dos casos cuesta
+una prueba de 134 MB.
+
 Rendimiento esperado: el README cita 60 ms por imagen en A100 o RTX 3090 con FP16. En un
 i7-10610U la cifra será dos órdenes de magnitud mayor, del orden de **3-8 s por frame** con
 el modelo `vits`. Un video de 1 min a 2 FPS son 120 frames: ~16 min sólo de inferencia.
@@ -267,6 +285,97 @@ Si el motor es MoGe-2, ese contrato cambia:
 
 Por eso T2 y T3 van antes que cualquier código de M3/M4. Escribir esos módulos contra el
 contrato viejo implica rehacerlos.
+
+### 6 bis. Estado del arte en repositorios públicos (búsqueda 2026-10-05)
+
+Búsqueda por API de GitHub (stars, licencia, última actividad) y lectura de abstracts.
+**No se clonó ni instaló nada**: el disco sigue intacto. Sirve para no reinventar y para
+saber qué se midió en la literatura antes de medirlo nosotros.
+
+#### El precedente más cercano: video de celular → point cloud → caños
+
+**Maalek & Lichti, "Towards Automatic Digital Documentation and Progress Reporting of
+Mechanical Construction Pipes using Smartphones"** (2020). Es exactamente nuestro caso:
+video de celular, escala métrica definida a mano, extracción de caños de la nube, clasificación
+por radio contra un BOM.
+
+Sus números medidos en obra (58 caños, no laboratorio):
+
+| Métrica | Resultado |
+| :--- | :--- |
+| Radio del caño | error **5.4 mm** |
+| Clasificación de caños | F-measure **96.4 %** |
+| Longitud | error **5.0 %** |
+| Condición | **≥ 95 % de solapamiento** entre imágenes |
+
+Dos lecturas. La buena: **5.4 mm de error de radio está por debajo de nuestra tolerancia de
+10 mm (D7), y con escala manual.** Nuestro criterio no es arbitrario: hay precedente publicado.
+
+La mala: **exige 95 % de solapamiento entre frames.** Eso es muy superior al
+`fps_sampling_rate` de cualquier video de celular normal, y tiene costo computacional
+directo. Es el criterio que rompe el E2E de < 8 min (R12). Queda como referencia para
+dimensionar T4: el solapamiento no es un parámetro libre, es el que decide la precisión.
+
+También relevante: un paper de 2023 sobre pipelines reconstruye **desde los bordes de
+la imagen, no desde la nube**, porque *"the low texture of the pipes usually results in a
+very sparse point cloud"*. Es el riesgo inverso al de MoGe: si la textura del caño es baja,
+COLMAP/MVS no densifica nada. Otra razón para medir T2 en vez de suponerlo.
+
+#### Repositorios que confirman nuestro stack
+
+| Repos | Stars | Licencia | Activo | Veredicto |
+| :--- | ---: | :--- | :--- | :--- |
+| `microsoft/MoGe` | 3004 | MIT (+ DINOv2 Apache-2.0) | 2026-09 | Motor candidato. Licencia D6 OK |
+| `leomariga/pyRANSAC-3D` | 670 | Apache-2.0 | 2026-08 | **Revisa la decisión de §5.** Ver abajo |
+| `LTTM/Scan-to-BIM` | 131 | sin declarar | 2025-03 | BIM-Net++, requiere GPU y pesos entrenados |
+| `mac999/scan_to_bim_pipeline` | 56 | MIT | 2026-07 | Pipeline Open3D, RANSAC + DL. Referencia de estructura |
+| `ZENULI/PyPipes` | 40 | MIT | **2022-02** | DeepPipes. Abandonado 4 años, no usar |
+| `humantecheu/pystruct3d` | 37 | MIT | 2026-06 | Ajuste de OBB para scan-to-BIM. Charsetrecho |
+| `weiykong/cylfit` | 1 | MIT | 2026-09 | Ajuste cilíndrico con MAGSAC/PROSAC. Charsetrecho |
+
+**Corrección a §5.** Registré `pyransac3d` como descartado por "poco mantenido". Los datos
+dicen otra cosa: 670 stars, Apache-2.0, con commits en 2026-08. **No estaba poco mantido.**
+Mi razón real era evitar una dependencia extra, pero `pyRANSAC-3D` es Apache-2.0 (libre,
+D6 OK), pura NumPy, y ya resuelve el ajuste cilíndrico que §5 describe como "código propio".
+
+Esto no está decido. Es una pregunta abierta con impacto directo en M5: usar `pyRANSAC-3D`
+o escribir el ajuste a mano con `scipy`. Lo anoté como **T22**.
+
+#### Sobre el ajuste cilíndrico
+
+`weiykong/cylfit` (MIT, 1 star, muy reciente) es el código más cercano a lo que necesitamos:
+MAGSAC + PROSAC + refinamiento Levenberg-Marquardt con jacobiano analítico, expone
+`residuals`, `rmse` e `inlier_mask`. Es exactamente el insumo de T17: **la dispersión de
+los residuales es una estimación de incertidumbre de la cota.**
+
+Advertencia técnica relevante y transferible, de una PR a PCL (#6338): el ajuste de
+cilindro por mínimos cuadrados con residuo **al cuadrado de la distancia** (`r̂² - (r+ε)²`)
+introduce **sesgo sistemático** que sobreestima el radio como `√(r² + σ²)`. Con ruido
+bajo y radio grande es despreciable, pero **con radio de 25 mm y σ de pocos milímetros
+empieza a importar**. Si escribimos el ajuste, el residuo debe ser lineal en la distancia
+al eje, no su cuadrado.
+
+#### Datasets
+
+| Dataset | Qué es | Licencia |
+| :--- | :--- | :--- |
+| **OpenTrench3D** | 310 nubes fotogramétricas de video de celular, 528M puntos, redes de cañerías segmentadas. 5 clases | **CC BY-NC 4.0** |
+| CLOI | Nubes de interiores con OBB anotadas | — |
+
+OpenTrench3D es el más parecido a nuestro insumo, y su construcción es casi idéntica:
+video de celular, GCP marcados con spray, app que procesa el video a la nube.
+
+**No usarlo**: la licencia es **NC (no comercial)**, y documentar obra de clientes es
+uso comercial. D6 y R10 lo impiden. Sirve como referencia metodológica, no como datos.
+
+#### Conclusión de la búsqueda
+
+1. Nuestro criterio de 10 mm **tiene precedente publicado** (5.4 mm en radio, con escala
+   manual y video). No es arbitrario.
+2. El riesgo de MoGe-2 con estructuras delgadas **está confirmado por sus autores**.
+   T3 es bloqueante real.
+3. La secuencia correcta sigue siendo: no escribir M3/M4 antes de medir el motor.
+4. Aparece un riesgo nuevo (R13): solapamiento insuficiente por baja textura del caño.
 
 ### Collada
 
@@ -386,6 +495,8 @@ AAAAMMDD-HHMMSS_<descripcion>.<ext>
 | R10 | Datos de obra son confidenciales del cliente | Subir a terceros sólo con autorización explícita (T11) |
 | R11 | **Disco libre escaso: ~17.7 GB.** PyTorch CPU ~2 GB, pesos MoGe ~134 MB a 2.5 GB, COLMAP nocuda ~3.1 GB descomprimido | No instalar nada sin medir antes. Preferir el modelo `vits` (134 MB). No evaluar MoGe-3 aquí |
 | R12 | Latencia de MoGe-2 en CPU (~3-8 s/frame) rompe el criterio E2E de < 8 min por sí sola | Reducir nº de frames con ORB (submuestreo) o recortar el criterio (T10) |
+| R13 | **Baja textura del caño** produce nubes ralas: *"low texture of the pipes usually results in a very sparse point cloud"* (literatura 2023). Es el riesgo inverso al de MoGe y afecta a COLMAP/MVS | Medir en T3 la densidad real **sobre un caño**, no la densidad global de la escena (§6 bis) |
+| R14 | El precedente publicado con 5.4 mm de error de radio **exige ≥ 95 % de solapamiento** entre frames, más de lo que da un video de celular normal | Dimensionar T4 con ese número como techo. Medir el solapamiento real de la captura antes de fijar `fps_sampling_rate` |
 
 ---
 
@@ -522,7 +633,9 @@ Reglas:
 * [ ] **T3** Validar MoGe-2 sobre una imagen real de obra con cotas conocidas: medir error
       real sobre un caño antes de prometer los umbrales del SDD (ver §6).
 * [ ] **T4** Fijar umbrales de calidad de video: `fps_sampling_rate`, `blur_threshold`,
-      nº mínimo de matches ORB para declarar solapamiento válido.
+      nº mínimo de matches ORB para declarar solapamiento válido. **El solapamiento es el
+      parámetro más sensible del sistema**, no el más trivial: el único precedente con
+      error de 5.4 mm exige ≥ 95 % (R14). Ver §6 bis.
 * [ ] **T5** Definir `distance_threshold` del RANSAC de piso para suelos irregulares.
 * [ ] **T6** Definir parametrización de DBSCAN y del ajuste cilíndrico (radio, RMSE)
       para diámetros reales de 1/2" a 3".
@@ -544,6 +657,11 @@ Reglas:
 * [ ] **T21** Definir la **identificación del relevamiento** en el JSON de salida: qué
       datos identifican la obra (ambiente, fecha, responsable, lote) para que el documento
       sea rastreable. Con T17 forma el bloque de metadatos del reporte.
+* [ ] **T22** Decidir si el ajuste cilíndrico de M5 usa `pyRANSAC-3D` (Apache-2.0,
+      670 stars, NumPy puro) o implementación propia con `scipy`. **Bloqueante de M5.**
+      Ver §6 bis: la decisión anterior de descartarlo se basó en un dato equivocado.
+      Si se usa la librería, verificar que sea el cilindro de eje + radio que necesitamos
+      y no una variante de cono o elipse.
 
 ### 13.2 Mejoras de V2
 
