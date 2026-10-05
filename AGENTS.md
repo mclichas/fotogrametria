@@ -12,8 +12,8 @@ Aplicación modular en Python que procesa video/fotografías de ambientes en rem
 reconstruye la geometría 3D métricamente escalada, aísla cañerías y artefactos, y exporta
 planos CAD (`.dxf`) y reportes dimensionales (`.json`).
 
-Salida principal: plano de cañerías post instalación con cotas métricas confiables
-(error relativo < 1.5 % o ≤ 10 mm en distancias < 2 m).
+Salida principal: plano de cañerías post instalación con cotas métricas confiables.
+**Tolerancia máxima de error: 10 mm** (decisión D7, §11.1).
 
 ---
 
@@ -77,6 +77,9 @@ Campos que deben existir ya en los modelos aunque la V1 no los use:
 | D4 | **GUI obligatoria**: asistente (wizard) paso a paso, con visualización del estado del proceso | El usuario debe guiar el proceso, no solo ver logs |
 | D5 | Detector de features **ORB** | Libre de patentes. El usuario no quiere licencias ni software restringido |
 | D6 | **Política de software 100 % libre** (ver §5). Nada de SIFT vía `opencv-contrib`, ni alternativas proprietarias | Requisito explícito del usuario |
+| D7 | **Tolerancia máxima de error: 10 mm.** Es un techo, no un objetivo | Por encima de 10 mm el plano no sirve para el propósito. Ver §11.1 |
+| D8 | **Python 3.12** para el venv | `open3d` llega a cp314 pero `ezdxf` se detiene en cp313 — §5.1 |
+| D8 | **Python 3.12** para el venv del proyecto | `open3d` llega a cp314 pero `ezdxf` se detiene en cp313. 3.12 tiene wheels de todo — §5.1 |
 
 ### 4.1 Consecuencia de D3 sobre el modelo `CalibrationData`
 
@@ -108,7 +111,7 @@ Todas con licencia libre. No agregar dependencias sin verificar su licencia.
 | Video, features ORB, homografía | `opencv-python` | Apache-2.0 | Sin `opencv-contrib` (D5/D6) |
 | Reconstrucción SfM | COLMAP (binario) | BSD-3-Clause | Estado del arte. **No instalado** |
 | Binding SfM (opcional) | `pycolmap` | BSD-3-Clause | Sin wheels para Python 3.14 — ver §9 |
-| Nube de puntos, RANSAC planos, OBB | `open3d` | MIT | Sin soporte oficial Python 3.14 — ver §9 |
+| Nube de puntos, RANSAC planos, OBB | `open3d` | MIT | Wheels win_amd64 hasta cp314. **0.20.0** — ver §5.1 |
 | Geometría métrica monocular (candidata) | `moge-2` (Microsoft) | MIT | Sustituto o complemento de COLMAP — ver §6 |
 | Clustering DBSCAN | `scikit-learn` | BSD-3-Clause | Open3D no expone DBSCAN |
 | Optimización numérica (ajuste cilíndrico) | `scipy` | BSD-3-Clause | `scipy.optimize.least_squares` |
@@ -122,6 +125,29 @@ Todas con licencia libre. No agregar dependencias sin verificar su licencia.
 * `pyransac3d` → licencia MIT pero proyecto poco mantenido; el ajuste cilíndrico se
   implementa con `scipy` + RANSAC propio para evitar dependencia extra.
 * `python-pcl` → pesadilla de build en Windows, sin ventaja sobre Open3D.
+
+### 5.1 Versiones verificadas en PyPI (2026-10-05)
+
+Verificado contra la API de PyPI. **No asumir versiones: comprobar antes de fijar.**
+
+| Paquete | Última | Wheels win_amd64 | Nota |
+| :--- | :--- | :--- | :--- |
+| `open3d` | 0.20.0 | cp310–cp314 | **Sí tiene wheel para 3.14.** R1 estaba exagerado |
+| `opencv-python` | 5.0.0.93 | `cp37-abi3` | ABI3: sirve para cualquier Python ≥ 3.7. No es un conflicto |
+| `scipy` | 1.18.1 | cp312–cp315 | **1.18.1 NO tiene cp310.** Si se usa 3.10, fijar `scipy==1.15.3` |
+| `scikit-learn` | 1.9.1 | cp311–cp315 | Si se usa 3.10, fijar `scikit-learn==1.5.2` |
+| `ezdxf` | 1.4.4 | cp310–cp313 | **No llega a cp314.** Límite duro si se usa 3.14 |
+| `pydantic` | 2.13.5 | — | `pydantic-core` es binario, pero publica wheel universal vía del core |
+| `torch` | 2.14.1 | cp310–cp314 | Instalar la build de CPU explícita (§6) |
+
+**Consecuencia para elegir la versión de Python:** hay un conflicto real.
+
+`open3d` llega hasta cp314, pero `ezdxf` **se detiene en cp313**. Un proyecto que necesita
+ambos no puede usar 3.14. Las opciones son 3.10 (instalada) o 3.12/3.13.
+
+Recomendación: **3.12**, porque tiene wheels de todo y evita fijar versiones antiguas
+de scipy y scikit-learn que ya no son la última. 3.10 funciona pero obliga a tres
+versiones pinneadas por falta de wheel.
 
 ---
 
@@ -331,7 +357,7 @@ AAAAMMDD-HHMMSS_<descripcion>.<ext>
 
 | # | Riesgo | Mitigación |
 | :--- | :--- | :--- |
-| R1 | **Python 3.14 sin wheels** de `open3d` ni `pycolmap` | Crear venv con **Python 3.12** para el proyecto. Verificar antes de fijar dependencias |
+| R1 | **Conflicto de wheels por versión de Python.** `open3d` llega a cp314 pero `ezdxf` se detiene en cp313 | Usar Python **3.12** (D8). Verificar antes de fijar dependencias — §5.1 |
 | R2 | COLMAP no instalado en Windows | Sólo aplica si se confirma COLMAP como motor (§6). Descarga del binario (GUI o CLI) |
 | R3 | Criterio "< 3 min densificación de 40 imágenes" sin GPU es optimista | Medir en la máquina real y recalibrar el umbral (T10) |
 | R4 | `eps=0.04 m` en DBSCAN depende de densidad de la nube densa | Hacerlo parámetro configurable, no constante |
@@ -348,7 +374,7 @@ AAAAMMDD-HHMMSS_<descripcion>.<ext>
 
 ## 10. Convenciones de código
 
-* Python ≥ 3.11 (máximo probado 3.12 por R1). Tipos con `from __future__ import annotations`.
+* Python 3.12 (D8). Tipos con `from __future__ import annotations`.
 * Modelos de datos: `pydantic.BaseModel` para lo que cruza la frontera de un módulo
   (entrada/salida, serialización JSON); `dataclass(frozen=True)` para geometría interna.
 * Nombres de archivo en `snake_case`; módulos en inglés; documentación y comentarios en español.
@@ -364,13 +390,45 @@ AAAAMMDD-HHMMSS_<descripcion>.<ext>
 
 ## 11. Criterios de calidad no negociables
 
-* Tolerancia de distancias ortogonales: **± 5 mm**.
-* Error de escala global: **< 1 %** en controles de prueba.
-* Desviación del plano de piso respecto a `Z=0`: varianza de residuos **< 0.015 m**.
-* Detección de cañerías de diámetro > 1/2": **≥ 90 %**.
-* Falsos positivos de planos estructurales: **< 2 %**.
-* E2E video de 1 min: **< 8 min**.
-* Pruebas: `pytest` cubriendo TC-MOD1-01 a TC-MOD7-02 + criterios E2E CA-E2E-01..05.
+### 11.1 Precisión métrica — decisión D7
+
+**La tolerancia máxima de error aceptable es 10 mm.** Confirmado por el usuario el 2026-10-05.
+
+Fundamento: por encima de 10 mm el plano deja de ser útil para el propósito. No es un
+número arbitrario del SDD sino el umbral de utilidad práctica del documento final.
+
+Consecuencia: **10 mm es un techo, no un objetivo.** El objetivo debe estar por debajo.
+Si el error medido en obra se acerca a 10 mm, el resultado es inaceptable aunque formalmente
+cumpla el criterio.
+
+### 11.2 Criterios numéricos
+
+| Criterio | Umbral | Ámbito |
+| :--- | :--- | :--- |
+| Error de escala global | **< 1 %** | Controles de prueba |
+| Desviación del plano de piso vs `Z=0` | residuos **< 0.015 m** | M4 |
+| Detección de cañerías > 1/2" | **≥ 90 %** | M5 |
+| Falsos positivos de planos estructurales | **< 2 %** | M5 |
+| Formateo numérico | 3 decimales | Sólo presentación (R5) |
+
+### 11.3 Requisitos por consumidor
+
+Los criterios de la SDD se mezclan en un solo número. En la práctica hay tres capas
+distintas, y confundirlas produce uninhabitables:
+
+| Capa | Tolerancia | Qué mide | Quién lo verifica |
+| :--- | :--- | :--- | :--- |
+| **A. Algoritmo** | **± 5 mm** | Error interno del cálculo: ajuste de escala, punto-plano, RANSAC | Tests unitarios (TC-MOD4, TC-MOD6) |
+| **B. Reconstrucción** | **± 10 mm** | Error de la geometría extraída: nube, ajuste cilíndrico, radios | Validación contra puntos de control en obra |
+| **C. Extremo a extremo** | **± 10 mm** o **< 1.5 %** | Lo que lee el instalador en el DXF | CA-E2E-01 con cinta métrica |
+
+La diferencia importa: si la nube tiene error de 8 mm pero el algoritmo calcula sin error,
+el fallo es de reconstrucción, no de cálculo. Un pipeline con ± 5 mm en capa A y una nube
+de 30 mm va a fallar en la C sin que ningún test unitario lo detecte.
+
+**Regla de diagnóstico:** cuando el error E2E exceda 10 mm, hay que aislar en qué capa
+aparece antes de tocar código. Medir contra puntos de control intermedios, no sólo contra
+la cinta en el final.
 
 Comandos esperados (a definir en `pyproject.toml`):
 
@@ -408,7 +466,9 @@ Reglas:
 
 ### 13.1 Bloqueantes (resolver antes de escribir código del módulo correspondiente)
 
-* [ ] **T1** Crear venv con Python 3.12 y fijar versiones exactas en `pyproject.toml` (R1).
+* [ ] **T1** Crear venv con Python 3.12 (D8) y fijar versiones exactas en `pyproject.toml`.
+      Requiere **instalar Python 3.12**: la máquina tiene 3.14.2 y 3.10.4, no 3.12.
+      Las versiones están verificadas en §5.1 — volver a comprobar antes de fijar.
 * [ ] **T2** **Decidir el motor de reconstrucción** (ver §6): MoGe-2, COLMAP sparse + MoGe-2,
       o mantener COLMAP completo. Bloquea el diseño de M3 y M4.
 * [ ] **T3** Validar MoGe-2 sobre una imagen real de obra con cotas conocidas: medir error
@@ -420,8 +480,8 @@ Reglas:
       para diámetros reales de 1/2" a 3".
 * [ ] **T7** Definir representación de caños en DXF: eje + radio en cota, o poliedro aproximado.
 * [ ] **T8** Tabla de diámetros comerciales (¿ANSI, ISO, o ambos?) para `estimated_nominal_diameter`.
-* [ ] **T9** Inicializar git local apuntando a `https://github.com/mclichas/fotogrametria`
-      y añadir `.gitignore` (R6).
+* [x] **T9** Git inicializado con `.gitignore` y `.gitattributes`, rama `main`, remoto
+      `mclichas/fotogrametria`. Completado 2026-10-05.
 * [ ] **T10** Recalibrar los umbrales de densidad y tiempo del SDD contra esta máquina,
       o documentar explícitamente que quedan fuera de alcance sin GPU NVIDIA (§2.1).
 * [ ] **T11** Definir la política de datos de obra: qué se sube a terceros, qué queda local
@@ -452,8 +512,9 @@ disponible primero** y sin que el usuario lo autorice. Presupuesto aproximado:
 
 ### 13.3 Decisiones ya resueltas (no reabrir sin motivo)
 
-* [x] D1–D6 (§4). Licencia libre, ORB, escala manual con ancho/alto, GUI wizard,
-      nombres con fecha y hora, V1 de un solo video.
+* [x] D1–D8 (§4). Licencia libre, ORB, escala manual con ancho/alto, GUI wizard,
+      nombres con fecha y hora, V1 de un solo video, tolerancia 10 mm, Python 3.12.
+* [x] **T9** Git inicializado, rama `main`, remote en `mclichas/fotogrametria`. 2 commits pusheados.
 
 ---
 
