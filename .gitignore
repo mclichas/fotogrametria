@@ -1,0 +1,66 @@
+# Datos de obra: nunca se versionan.
+# Son videos y fotos de clientes, pesados y confidenciales.
+data/ingest/*
+!data/ingest/README.md
+
+# Intermedios generados: desechables, se regeneran desde data/ingest.
+work/
+outputs/
+*.ply
+*.ply.json
+
+# Nubes y modelos de COLMAP / MoGe
+*.db
+*.bin
+*.txt.nvm
+project_cache/
+
+# Entornos y dependencias
+.venv/
+venv/
+env/
+__pycache__/
+*.py[cod]
+*.egg-info/
+.eggs/
+dist/
+build/
+uv.lock
+
+# Modelos de IA descargados (se re-descargan con huggingface_hub)
+*.pt
+*.pth
+*.safetensors
+*.onnx
+models/
+checkpoints/
+.cache/
+~/.cache/huggingface/
+
+# Configuración sensible: credenciales de APIs, tokens
+.env
+.env.*
+*.secret
+secrets/
+
+# Editores
+.vscode/
+.idea/
+*.swp
+.DS_Store
+Thumbs.db
+desktop.ini
+
+# Testing
+.pytest_cache/
+.coverage
+htmlcov/
+.ruff_cache/
+.mypy_cache/
+.tox/
+
+# Jupyter
+*.ipynb_checkpoints/
+
+# Sistema
+*.log
