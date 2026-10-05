@@ -293,8 +293,115 @@ Si el motor es MoGe-2, ese contrato cambia:
   problema real.
 * `CalibrationData` (D3) pasa a ser más valiosa: es la única referencia de escala absoluta.
 
-Por eso T2 y T3 van antes que cualquier código de M3/M4. Escribir esos módulos contra el
+Por eso T2 y T3 van antes de cualquier código de M3/M4. Escribir esos módulos contra el
 contrato viejo implica rehacerlos.
+
+### 6 ter. Apps de escaneo con celular: qué se confirma y qué se descarta
+
+Búsqueda 2026-10-05 sobre las apps de escaneo 3D con celular (Polycam, KIRI Engine) y los
+modelos generativos image→3D (TripoSR, InstantMesh, TRELLIS). El usuario señaló este tipo de
+videos como antecedente válido. Es una categoría distinta a la de §6, y conviene separarla.
+
+#### Las tres familias, y cuál nos sirve
+
+| Familia | Apps / repos | Licencia | Veredicto |
+| :--- | :--- | :--- | :--- |
+| **Fotogrametría MVS clásica** | Polycam (modo scan), KIRI Photo Scan | comercial | **La única válida.** Geométrica y métrica |
+| **3DGS / NeRF** | Polycam (modo splat), KIRI 3DGS | comercial | Descartada: no métrica (§6) |
+| **Generativos image→3D** | TripoSR, InstantMesh, TRELLIS | MIT / Apache-2.0 | Descartada: alucinan geometría |
+
+#### El propio vendor de 3DGS confirma el descarte
+
+KIRI Engine, en su documentación técnica:
+
+> *"If you need sub-millimeter geometric accuracy (such as scanning a highly worn coin or
+> precise industrial parts for **CAD measurement**, photogrammetry or laser scanning remains
+> superior. 3DGS excels at visual photorealism, but its mesh surface estimation may smooth
+> over extreme micro-details."*
+
+Su tabla de decisión separa los dos usos: 3DGS para *"visual photorealism"*, fotogrametría
+para *"textured, diffuse surfaces requiring accurate geometric accuracy"*.
+
+Es el fabricante del 3DGS diciendo que no es para nuestro caso. La documentación de un
+producto comercial no es un criterio de aceptación, pero como evidencia de que la comunidad
+técnica coincide en el mismo límite, sí pesa.
+
+#### El dato duro: apps comerciales no llegan a precisión dimensional
+
+Estudio de comparación KIRI vs Polycam (2026) en un caso real de impresión 3D (prótesis de
+mama, objeto de ~30 cm, captura en condiciones controladas). Midieron la **dimensión real**
+del mesh, no el aspecto visual:
+
+| App | Modo | Error de altura |
+| :--- | :--- | :--- |
+| KIRI Engine | fotos | 3.04 mm |
+| KIRI Engine | video | 1.70 mm |
+| Polycam | fotos | 0.72 mm |
+| Polycam | video | 2.64 mm |
+
+Conclusión textual del estudio: *"both applications failed in the height criterion,
+compromising the dimensional accuracy of the models"*.
+
+**Lectura para el proyecto:** apps comerciales maduras, sobre un objeto grande, liso, con
+textura, en condiciones controladas, **no llegan a precisión dimensional**. Nuestro caso es
+un caño de 50 mm de diámetro, embebido en una pared, filmado a mano, sin fondo controlado.
+Es estrictamente más difícil que el de ese estudio. Este es el argumento más fuerte que
+tenemos para no esperar 10 mm por el lado de las apps.
+
+#### Los generativos image→3D, descartados por cuatro razones
+
+Datos de GitHub, 2026-10-05:
+
+| Repo | Stars | Licencia | Tamaño |
+| :--- | ---: | :--- | ---: |
+| `microsoft/TRELLIS` | 13761 | MIT | 1.1 GB |
+| `vast-ai-research/TripoSR` | 7016 | MIT | 37 MB |
+| `TencentARC/InstantMesh` | 4552 | Apache-2.0 | 34 MB |
+
+1. **Alucinan geometría.** El paper de TripoSR: *"tends to generate degraded geometry and
+   textures on the back when the input image is more free-style"*. Reconstruye lo que no
+   vio **inventándolo**. En documentación de obra eso es lo contrario de lo que serve.
+2. **No son métricos.** Sin escala absoluta, por construcción.
+3. **Requieren GPU NVIDIA.** TripoSR pide ~6 GB VRAM; InstantMesh, 2 GPUs para el demo.
+   Aquí no hay GPU (§2.1).
+4. **TRELLIS no entra** en el espacio disponible (R11).
+
+El riesgo es que esto parezca mejor que lo nuestro porque se ve mejor. Se ve mejor porque
+miente sobre lo que no vio.
+
+#### Lo que sí es transferible: Polycam y las poses globalmente optimizadas
+
+Documentación de Polycam (`PolyCam/polyform`, MIT, 234 stars, activo 2026-01):
+
+> *"we globally optimize the ARKit camera poses before reconstructing the mesh, and these
+> optimized camera poses should be as good or better than what you'd get from an SfM software
+> like COLMAP, **particularly for complex indoor scenes where most SfM pipelines will fail**."*
+
+Dos consecuencias:
+
+* **En interiores — que es nuestro caso — el estado del arte detrás de una app comercial no
+  le gana a COLMAP sparse.** Eso valida la elección del SDD original como base.
+* **Optimizar poses globalmente y no secuencialmente** ataca la deriva, que es el modo de
+  falla típico de SfM en video. Es un enfoque para M3 que no estaba en la lista. Anotado
+  como candidato a considerar en T2.
+
+Lo que Polycam **no** abre: usa el LiDAR de ARKit. Advertencia textual de su propia
+documentación: *"resolving geometric detail less than 1-2 cm is not possible"*, y
+*"the max range of the lidar sensor is 5m"*. Un caño de 25 mm de radio está por debajo de
+su resolución LiDAR. Su motor no es nuestro camino.
+
+#### Conclusión
+
+La búsqueda **confirma** §6 y no abre vía nueva. Perfila el riesgo en vez de cambiarlo:
+
+* Para métrica y CAD: fotogrametría MVS clásica. Tres fuentes independientes coinciden.
+* MoGe-2 sigue siendo el candidato para el paso denso en CPU, por ser el único que no
+  necesita GPU.
+* **R13 se agrava:** 3DGS le gana a la fotogrametría justo en "reflective, low-texture", que
+  es donde está nuestro caño. O sea, la técnica que gana en nuestra zona de dificultad es
+  la que no es métrica. No hay atajo por ahí.
+* Se suma el dato de las apps: si ellas fallan en dimensiones sobre un objeto fácil, el
+  margen para un caño de 50 mm no es holgado.
 
 ### 6 bis. Estado del arte en repositorios públicos (búsqueda 2026-10-05)
 
@@ -583,9 +690,10 @@ AAAAMMDD-HHMMSS_<descripcion>.<ext>
 | R10 | Datos de obra son confidenciales del cliente | Subir a terceros sólo con autorización explícita (T11) |
 | R11 | **Disco libre escaso: ~17.7 GB.** PyTorch CPU ~2 GB, pesos MoGe ~134 MB a 2.5 GB, COLMAP nocuda ~3.1 GB descomprimido | No instalar nada sin medir antes. Preferir el modelo `vits` (134 MB). No evaluar MoGe-3 aquí |
 | R12 | Latencia de MoGe-2 en CPU (~3-8 s/frame) rompe el criterio E2E de < 8 min por sí sola | Reducir nº de frames con ORB (submuestreo) o recortar el criterio (T10) |
-| R13 | **Baja textura del caño** produce nubes ralas: *"low texture of the pipes usually results in a very sparse point cloud"* (literatura 2023). Es el riesgo inverso al de MoGe y afecta a COLMAP/MVS | Medir en T3 la densidad real **sobre un caño**, no la densidad global de la escena (§6 bis) |
+| R13 | **Baja textura del caño** produce nubes ralas: *"low texture of the pipes usually results in a very sparse point cloud"* (literatura 2023). Es el riesgo inverso al de MoGe y afecta a COLMAP/MVS. **Agravado:** 3DGS le gana a la fotogrametría justo en "reflective, low-texture", o sea que la técnica que funciona en nuestra zona de dificultad es la que no es métrica | Medir en T3 la densidad real **sobre un caño**, no la densidad global de la escena (§6, §6 ter) |
 | R14 | El precedente publicado con 5.4 mm de error de radio **exige ≥ 95 % de solapamiento** entre frames, más de lo que da un video de celular normal | Dimensionar T4 con ese número como techo. Medir el solapamiento real de la captura antes de fijar el piso. **Ojo:** el knee está en 90 %, no en 95 %. Ver §6 bis |
 | R15 | El muestreo adaptativo (más frames donde la cámara se mueve) reduce el número de frames, pero **nunca se validó con un objeto tan chico como 25 mm de radio**: su experimento usó caños industriales de 100 mm o más | El modo de falla no es "más ruido" sino **caño chico sin geometría suficiente**, que es peor y no se ve como ruido. T3 debe medir densidad **sobre el caño**, no en la escena (§6 bis) |
+| R16 | **Apps comerciales de escaneo con celular tampoco llegan a precisión dimensional.** KIRI y Polycam, sobre un objeto de ~30 cm en condiciones controladas, dieron errores de altura de 0.72 a 3.04 mm y **fallaron el criterio dimensional** del estudio (§6 ter) | Nuestro caso es más difícil que el de ese estudio. El margen para 10 mm (D7) no es holgado, y no hay atajo por el lado de las apps. Sirve para no prometer lo que ninguna herramienta comercial entrega |
 
 ---
 
@@ -719,6 +827,10 @@ Reglas:
       Las versiones están verificadas en §5.1 — volver a comprobar antes de fijar.
 * [ ] **T2** **Decidir el motor de reconstrucción** (ver §6): MoGe-2, COLMAP sparse + MoGe-2,
       o mantener COLMAP completo. Bloquea el diseño de M3 y M4.
+      **Elemento nuevo de §6 ter:** considerar **optimización global de poses** en lugar de
+      la secuencial, siguiendo a Polycam. Ataca la deriva, que es el modo de falla típico
+      de SfM en video, y su documentación dice que en interiores sus poses son *"as good or
+      better"* que las de COLMAP sparse. A evaluar antes de cerrar T2.
 * [ ] **T3** Validar MoGe-2 sobre una imagen real de obra con cotas conocidas: medir error
       real sobre un caño antes de prometer los umbrales del SDD (ver §6).
 * [ ] **T4** Fijar umbrales de calidad de video: `blur_threshold`, nº mínimo de matches ORB
