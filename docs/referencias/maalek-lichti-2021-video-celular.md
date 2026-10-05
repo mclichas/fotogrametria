@@ -157,32 +157,103 @@ referencia técnica propia, no como entrada del presupuesto.
 
 ## 5. Herramientas
 
-| Rol | Herramienta | Licencia |
-| :--- | :--- | :--- |
-| SfM + densa | **COLMAP** | BSD-3-Clause |
-| Ajuste de elipse | confocal hyperbola (propio) | — |
-| Detección de elipse | no-overlapping ellipse (propio) | — |
-| Clasificación | k-means | — |
-| Terrestre de referencia | Leica HDS6100 TLS, FARO Focus TLS | comercial (solo referencia) |
-| Celulares probados | iPhone 11, Huawei P30, Samsung S10 | — |
+### Lo que nombra el paper
 
-**COLMAP confirmado textualmente** en el paper de calibración: *"COLMAP, an open-source
-software package comprised of many computational and scientific improvements to traditional
-SfM methods, was utilised."*
+El paper principal nombra **una sola herramienta de software: COLMAP.** Todo lo demás es
+código propio del grupo, y el instrumental de referencia es un escáner.
 
-Eso valida que la elección del SDD original era la estándar de la literatura. No la
-resuelve para esta máquina sin GPU.
+| Rol | Herramienta | Licencia | ¿Quién lo hizo? |
+| :--- | :--- | :--- | :--- |
+| SfM + densa | **COLMAP** | BSD-3-Clause | externo, open source |
+| Ajuste de elipse | confocal hyperbola | — | **propio**, paper 2021a |
+| Detección de elipse | no-overlapping ellipse | — | **propio**, paper 2021b |
+| Ajuste de cilindro | robust cylinder fitting | — | **propio**, Maalek et al. 2019 |
+| Emparejado de elipses | `Algorithm 2` | — | **propio** |
+| Corrección de excentricidad | `Algorithm 3` | — | **propio** |
+| Clasificación | k-means | — | estándar |
+| Referencia métrica | **Leica HDS6100** TLS | comercial | instrumental |
+| Celulares probados | Huawei P30, iPhone 11, Samsung S10 | — | — |
+
+### COLMAP, textual, en el paper principal
+
+> *"From the authors' recent experiences with COLMAP [24], a reliable open source SfM
+> software used in this study to perform 3D reconstruction, 300 4K images can take up to
+> **10 hours** to process, which is equivalent to analyzing only **5 seconds** of video
+> recording at 60 fps."*
+
+Y en el paper de calibración, la confirmación explícita:
+
+> *"In this study, COLMAP, an open-source software package comprised of many computational
+> and scientific improvements to traditional SfM methods, as documented in Schönberger
+> (2018), was utilised."*
+
+### Lo que el paper NO nombra
+
+Conviene dejarlo escrito, porque son huecos reales:
+
+* **No declara versión de COLMAP** ni del hardware. Reproducir sus números exige adivinar
+  la versión.
+* **No declara qué lenguaje ni entorno usan** para el ajuste de elipses, el de cilindros ni
+  el k-means. Ni Python, ni MATLAB, ni C++. No se puede reproducir el pipeline.
+* **No publica el código.** Los algoritmos con más valor (elipses confocales, detección
+  no-sobrepuestas, ajuste robusto de cilindro) viven en tres papers previos y no están
+  disponibles. Lo máximo publicable son las descripciones y las figuras.
+* **No nombran CloudCompare ni PCL** ni otra herramienta de postproceso, aunque el
+  experimental 3 usa emparejamiento punto-a-punto contra TLS con un umbral de 10 cm y
+  transformación de similitud. La implementación concreta no se identifica.
+* La pre-calibración se hizo **en su laboratorio**, con un campo grande de blancos
+  circulares negros y blancos de varios tamaños. No es un procedimiento que se pueda
+  replicar en obra sin Montar ese campo de blancos.
+
+### Consecuencia práctica: el software es la parte que menos podemos recuperar
+
+De todo lo que hacen, lo único reutilizable tal cual es **COLMAP**, que además ya
+evaluamos (§6 de AGENTS.md). El resto es algorítmica publicada como artículo, sin código.
+
+Esto refuerza una conclusión que ya estaba: **no estamos compitiendo con un producto
+competitivo existente, estamos reimplementando desde papers abiertos.** Nadie tiene un
+turnkey para esto.
+
+Y agrega un matiz sobre D6 que no habíamos considerado: la política de software libre no
+solo nos protege, también **nos habilita**. Su pre-calibración, que es la parte que más
+mejora el error (45 %), requiere montar un campo de blancos circulares y tener acceso a un
+laboratorio de calibración con HTTPS. Eso no es open source, es infraestructura. Nuestro
+enfoque manual con ancho y alto es una restricción, pero es una restricción que **no nos
+exige un laboratorio.** Para obra chica y no industrial, D3 no es el compromiso que
+parece.
 
 ### Detalle computacional
 
+En el paper principal, el tiempo de COLMAP: **300 imágenes 4K ≈ 10 horas**, según la
+experiencia propia de los autores. En su máquina, no en la nuestra, y sin decir con qué
+flags ni con GPU.
+
 El paper de ajuste de elipse reporta sus corridas en **AMD Ryzen 5-2600X, 64 GB RAM,
-SSD NVMe 1 TB**. Referencia útil: es una máquina de escritorio, no un portátil de 4 núcleos.
+SSD NVMe 1 TB**: escritorio de escritorio, no el portátil de 4 núcleos que tenemos nosotros.
 
 ### Captura
 
 Video 4K, **1 fps**, dividido en tramos de 30 s, en modo retrato y apaisado, con la cámara
 girada 90° sobre su eje óptico a distinta altura. Esa rotación deliberada es para que la
 auto-calibración *in situ* de COLMAP tenga oportunidad de estimar la distorsión radial.
+
+En el paper principal usan solo el **Huawei P30**, pre-calibrado en su laboratorio. Los otros
+dos celulares (iPhone 11, Samsung S10) aparecen únicamente en el paper de calibración.
+
+### El costo en disco, medido por ellos
+
+Dato del paper principal, y el que más nos interesa por R11:
+
+| Magnitud | Valor |
+| :--- | :--- |
+| Tamaño de una imagen 4K | 2.5–3 MB |
+| 10 min de video a 60 fps | **~100 GB** |
+| 300 imágenes 4K en COLMAP | **hasta 10 horas** |
+
+Los 100 GB por 10 minutos son a 60 fps. A 1 fps serían ~1.7 GB, que es manejable. Pero el
+cálculo igual avisa de algo: **el pipeline tiene que muestrear, no procesar el video entero.**
+Su `Algorithm 1` existe exactamente por eso, y es el mismo motivo por el que nosotros
+necesitamos submuestrar con ORB antes de MoGe.
 
 ---
 

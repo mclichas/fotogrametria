@@ -271,6 +271,16 @@ el modelo `vits`. Un video de 1 min a 2 FPS son 120 frames: ~16 min sólo de inf
 Eso rompe por sí solo el criterio E2E de < 8 min del SDD. Hay que medir el balance real
 antes de prometer ese criterio (T10).
 
+**Referencia publicada para COLMAP, del paper de Maalek & Lichti** (§6 bis), medido por
+ellos en su máquina: *"300 4K images can take up to 10 hours to process, which is equivalent
+to analyzing only 5 seconds of video recording at 60 fps"*. Es decir, **~2 min por imagen
+4K**. No es el mismo hardware que el nuestro y no aclara si usaron GPU.
+
+Sirve igual como orden de magnitud: **el SfM clásico es de minutos por imagen, no de
+segundos.** Cualquier criterio de tiempo del SDD que asuma minutos para docenas de frames
+está descartado por esta sola cifra. Y explica por qué los dos caminos convergen en lo
+mismo: o submuestramos fuerte, o el E2E se mide en horas.
+
 ### Consecuencias sobre el diseño de M3 y M4
 
 La SDD define M3 como SfM con `sparse_cloud.ply` + `dense_cloud.ply` + `cameras.json`.
