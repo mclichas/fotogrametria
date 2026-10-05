@@ -309,6 +309,7 @@ videos como antecedente válido. Es una categoría distinta a la de §6, y convi
 | **Fotogrametría MVS clásica** | Polycam (modo scan), KIRI Photo Scan | comercial | **La única válida.** Geométrica y métrica |
 | **3DGS / NeRF** | Polycam (modo splat), KIRI 3DGS | comercial | Descartada: no métrica (§6) |
 | **Generativos image→3D** | TripoSR, InstantMesh, TRELLIS | MIT / Apache-2.0 | Descartada: alucinan geometría |
+| **Generativos SaaS** | Meshy.ai | comercial, propietario | Descartada por D6 + R10. Ver abajo |
 
 #### El propio vendor de 3DGS confirma el descarte
 
@@ -402,6 +403,94 @@ La búsqueda **confirma** §6 y no abre vía nueva. Perfila el riesgo en vez de 
   la que no es métrica. No hay atajo por ahí.
 * Se suma el dato de las apps: si ellas fallan en dimensiones sobre un objeto fácil, el
   margen para un caño de 50 mm no es holgado.
+
+#### Meshy.ai: descartada, y la razón de fondo es estructural
+
+Investigada 2026-10-05. Plataforma comercial de generación 3D con IA: image-to-3D,
+text-to-3D, multi-image-to-3D, texturas PBR, rigging, animación. API REST con SDK de
+Python y Node, servidor MCP, CLI, y plugins para Blender, Unity, Unreal, Bambu Studio,
+Creality, Cura, OrcaSlicer. Certificada ISO 27001, SOC 2 y GDPR.
+
+Por escala es el líder de su categoría: **100 M+ modelos generados, 12 M+ usuarios**. Modelos
+internos `meshy-7.1`, `meshy-6`, `meshy-6-lite`, `meshy-t2`.
+
+**Por qué no sirve, en orden de peso:**
+
+1. **D6 y R10, directamente.** Servicio comercial propietario en la nube, cobro por créditos
+   (image-to-3D: 20 créditos por pedido; plan gratuito: 100 créditos/mes). Misma categoría
+   que PIX4D, DroneDeploy y EveryPoint, ya descartados (§6). Sin pesos descargables, sin
+   self-hosting, sin alternativa libre.
+2. **Todos sus endpoints son de un objeto aislado, no de una escena.** Lista completa de la
+   API: `text-to-3d`, `image-to-3d`, `multi-image-to-3d`, `remesh`, `convert`, `resize`,
+   `uv`, `unwrap`, `rig`, `animate`, `text-to-motion`, `retexture`, `print/analyze`,
+   `print/repair`, `auto-split`. **No hay endpoint de video, ni de escena, ni de secuencia
+   con consistencia entre frames.** `multi-image-to-3d` acepta 1 a 4 imágenes, y su
+   documentación dice textualmente que *"all images should depict the same object from
+   different angles"*. La webapp tiene un módulo `Scene`, pero es composición de assets, no
+   medición. Nuestro insumo es un ambiente entero con relaciones espaciales: eso es una
+   escena, no un objeto.
+3. **Es de la tercera familia: generativa.** *"Image to 3D runs on Meshy 7, our latest
+   foundation model, focused on alignment between your input image and the generated
+   result"*. Genera a partir de la imagen. Alucina lo que no vio, igual que TripoSR y
+   TRELLIS.
+
+#### Corrección: sí hay escala métrica, y no cambia el veredicto
+
+En una primera pasada registré que Meshy no tenía dónde introducir una escala. **Es falso,
+y conviene dejarlo corregido en el registro** (misma razón que la corrección de `pyransac3d`
+en §5: un dato equivocado en la memoria se paga caro después).
+
+La **Resize API** (`POST /openapi/v1/resize`) sí es métrica, con tres modos mutuamente
+excluyentes:
+
+| Parámetro | Tipo | Qué hace |
+| :--- | :--- | :--- |
+| `resize_height` | number | Altura específica, **en metros** |
+| `resize_longest_side` | number | Lado más largo a ese valor, en metros, preservando proporción |
+| `auto_size` | boolean | *"uses AI vision to automatically estimate the real-world height"* |
+
+`auto_size` existe también como flag dentro de Image to 3D, con `origin_at`
+(`bottom` / `center`). El ejemplo de la documentación es literalmente
+`{"input_task_id": "...", "resize_height": 1.8}`.
+
+Así que hay dos caminos: escala automática adivinada por visión artificial, o escala manual
+con un número en metros. El segundo es, en la práctica, equivalente a D3.
+
+**El descarte sigue en pie, pero el argumento correcto es otro: el orden de las
+operaciones.** En Meshy, `resize_height` se aplica a un modelo **ya generado**. La geometría
+se inventa primero y la escala se pone después. La malla resultante tiene la altura que se le
+pidió, y **ninguna garantía de que el radio del caño, la holgura entre caños o el ángulo de
+un codo sean correctos.** Reescalar no arregla geometría inventada: sólo le cambia el tamaño.
+
+En D3 la escala es un dato de **entrada** que condiciona y valida la geometría. El rectángulo
+marcado más ancho y alto reales permiten verificar que la relación de aspecto de la imagen no
+esté distorsionada, y ese desvío de `px/m` entre X e Y es información sobre la calidad de la
+reconstrucción, no un factor de escala.
+
+**Y hay una diferencia que no es negociable: `resize_height` acepta un solo número.** D3
+exige ancho **y** alto precisamente para poder comparar `px/m` en X contra `px/m` en Y. Un
+único número no puede detectar una distorsión que estire un eje y comprima el otro. Esa es la
+diferencia entre decir *"esto mide 50 mm"* y poder **verificar** que esos 50 mm son correctos
+en ambos ejes. No es un detalle de implementación: es la diferencia entre una cota y una
+afirmación.
+
+**Sobre "watertight y listo para imprimir":** es lo contrario de lo que buscamos, y conviene
+entenderlo. Para impresión 3D que el mesh sea cerrado y manifoldo sirve porque el slicer lo
+necesita; de hecho tienen un endpoint `print/repair` a 10 créditos por tarea. Cuando a una
+malla *generada* hay que repararla para que sea imprimible, lo que se hace es **parchar
+geometría inventada para que no se note**. Nosotros no imprimimos: medimos. Un hueco parcheado
+no es una cota.
+
+**Lo que sí aporta, como señal:** si el líder comercial de la categoría, con 100 M de modelos
+generados y la ingeniería de un equipo dedicado, expone la escala como un **paso posterior y
+opcional** —`resize` es un endpoint aparte, y `auto_size` viene en `false` por defecto—, es
+porque la escala **no es parte de la reconstrucción**: es un ajuste de presentación de un
+objeto que ya era inventado. La categoría resuelve el tamaño de un asset, no la posición de
+una cosa en el mundo.
+
+La competencia declarada de Meshy (páginas `/compare/meshy-vs-tripo`, `-vs-trellis-2`,
+`-vs-hunyuan3d`) son los mismos modelos abiertos que ya evaluamos. El sector comercial y el
+abierto compiten en la misma carrera generativa, y esa carrera no es la nuestra.
 
 ### 6 bis. Estado del arte en repositorios públicos (búsqueda 2026-10-05)
 
@@ -587,6 +676,7 @@ Las fotos de obra son datos de cliente, lo que añade un factor de confidenciali
 | DroneDeploy | API pública | Comercial |
 | Reali3 | REST, acepta MP4 | Comercial, proyecto poco documentado |
 | OpenScan Cloud | API abierta | Abierto y gratuito, pero sin SLA y capacidad limitada |
+| Meshy.ai | REST oficial, SDK Python y Node | Comercial por créditos (20 por image-to-3D). Sin endpoint de video ni de escena: solo objeto aislado (§6 ter) |
 
 Excepción que sí respeta D6: **OpenDroneMap** es GPL-2.0 y se puede self-hostear en una VPS
 con GPU, manteniendo la política de software libre. Costo pasa a ser la VPS.
