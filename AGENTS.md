@@ -377,6 +377,19 @@ uso comercial. D6 y R10 lo impiden. Sirve como referencia metodológica, no como
 3. La secuencia correcta sigue siendo: no escribir M3/M4 antes de medir el motor.
 4. Aparece un riesgo nuevo (R13): solapamiento insuficiente por baja textura del caño.
 
+#### Ficha completa del precedente principal
+
+El desarrollo anterior está en `docs/referencias/maalek-lichti-2021-video-celular.md`:
+pipeline, herramientas, resultados por nivel de solapamiento, problemas que enfrentaron y
+qué queda de esto para el proyecto. **Es material de referencia, no parte del sistema**
+(ver la regla de §8). Dos puntos que conviene tener presentes al retomar:
+
+* Descartan el registro scan-vs-BIM porque presupone un BIM siempre actualizado y "no puede
+  incorporar el impacto de los errores de construcción". Es el mismo razonamiento que llevó
+  a D9, por el mismo grupo de investigación.
+* Definen la escala **durante** el SfM, con blancos circulares físicos colocados en obra.
+  Choca con D3. Su método es más preciso; el nuestro es practicable sin llevar marcadores.
+
 ### Collada
 
 Alternativa a considerar si MoGe-2 no da la fidelidad necesaria: 3D Gaussian Splatting o NeRF
@@ -456,12 +469,19 @@ de entrada y salida, y excepciones de dominio propias.
 ├── tests/                        # pytest, TC-MOD1..TC-MOD7
 ├── data/
 │   └── ingest/                   # VÍDEOS Y FOTOS DE ENTRADA (el usuario coloca aquí)
+├── docs/
+│   └── referencias/              # fichas de papers y repos. CONTEXTO, no requisito
 ├── work/                         # generado: frames, nubes, intermedios
 └── outputs/                      # entregables: .dxf y .json
 ```
 
 Regla dura: **nada generado se escribe en `data/`**. `work/` es desechable y se puede
 borrar sin perder el original.
+
+Regla sobre `docs/referencias/`: es **contexto, no requisito**. Contiene fichas de papers
+y repositorios con lo que midieron otros. No se importa nada de ahí, no define contratos, y
+ningún número de esos archivos es un criterio de aceptación. Si una ficha contradice una
+decisión de §4, **manda la decisión** y se corrige la ficha.
 
 ### 8.1 Convención de nombres en `data/ingest/`
 
