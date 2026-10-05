@@ -12,7 +12,10 @@ Aplicación modular en Python que procesa video/fotografías de ambientes en rem
 reconstruye la geometría 3D métricamente escalada, aísla cañerías y artefactos, y exporta
 planos CAD (`.dxf`) y reportes dimensionales (`.json`).
 
-Salida principal: plano de cañerías post instalación con cotas métricas confiables.
+Salida principal: **documento de verificación post-instalación**, no una guía de instalación.
+El cañería ya está instalado; el sistema documenta dónde quedó realmente, para contrastarlo
+contra el proyecto y detectar desvíos.
+
 **Tolerancia máxima de error: 10 mm** (decisión D7, §11.1).
 
 ---
@@ -79,6 +82,7 @@ Campos que deben existir ya en los modelos aunque la V1 no los use:
 | D6 | **Política de software 100 % libre** (ver §5). Nada de SIFT vía `opencv-contrib`, ni alternativas proprietarias | Requisito explícito del usuario |
 | D7 | **Tolerancia máxima de error: 10 mm.** Es un techo, no un objetivo | Por encima de 10 mm el plano no sirve para el propósito. Ver §11.1 |
 | D8 | **Python 3.12** para el venv | `open3d` llega a cp314 pero `ezdxf` se detiene en cp313 — §5.1 |
+| D9 | **El producto verifica una instalación ya realizada, no guía una instalación.** Documenta ubicaciones reales para contrastar contra el proyecto | Confirmado por el usuario 2026-10-05. Ver §1 y §11.1 bis |
 
 ### 4.1 Consecuencia de D3 sobre el modelo `CalibrationData`
 
@@ -393,12 +397,32 @@ AAAAMMDD-HHMMSS_<descripcion>.<ext>
 
 **La tolerancia máxima de error aceptable es 10 mm.** Confirmado por el usuario el 2026-10-05.
 
-Fundamento: por encima de 10 mm el plano deja de ser útil para el propósito. No es un
-número arbitrario del SDD sino el umbral de utilidad práctica del documento final.
+Fundamento: por encima de 10 mm el contraste entre el relevamiento y el proyecto deja de
+ser confiable para señalar un desvío real. No es un número arbitrario del SDD sino el
+umbral de utilidad práctica del documento final.
 
 Consecuencia: **10 mm es un techo, no un objetivo.** El objetivo debe estar por debajo.
 Si el error medido en obra se acerca a 10 mm, el resultado es inaceptable aunque formalmente
 cumpla el criterio.
+
+### 11.1 bis Por qué el tipo de error importa más que su magnitud
+
+Al ser un documento de **verificación**, el software debe poder distinguir dos cosas que
+un instalador necesita separar:
+
+* **Error de medición** (la reconstrucción falló) → hay que corregir o descartar el relevamiento.
+* **Desvío real de obra** (el caño quedó fuera de proyecto) → hay que levantar un reclamo
+  o una nota de obra.
+
+Si el error de medición es de 8 mm, un desvío real de 12 mm es indistinguible de él. Con
+tolerancia de 10 mm, todo desvío menor a ~20 mm queda dentro del ruido. **El software no
+debe presentar un desvío como significativo cuando está dentro del margen de error.**
+
+De ahí salen dos requisitos concretos que el SDD no pedía:
+
+1. Cada cota debe reportar su **incertidumbre estimada**, no sólo su valor.
+2. Los desvíos contra el proyecto deben marcarse como **dentro o fuera de tolerancia**,
+   y los que quedan dentro deben rotularse explícitamente como no concluyentes.
 
 ### 11.2 Criterios numéricos
 
@@ -452,7 +476,10 @@ cada uno desbloqueando el siguiente:
 5. **Alineación** — factor de escala aplicado, residuo del plano de piso.
 6. **Segmentación** — nº de planos, caños y artefactos detectados; lista con checkboxes.
 7. **Análisis espacial** — tabla de cotas.
-8. **Exportación** — rutas de salida y botón para abrir carpeta.
+8. **Comparación con el proyecto** — *(opcional, V2 — T17, T18, T20)*. Importar el
+   proyecto o las cotas de referencia y marcar cada elemento como **dentro de tolerancia /
+   fuera de tolerancia / no concluyente**. Ver D9 y §11.1 bis.
+9. **Exportación** — rutas de salida y botón para abrir carpeta.
 
 Reglas:
 * Ningún paso avanza con datos inválidos: validación con mensajes en español y el error concreto.
@@ -485,6 +512,15 @@ Reglas:
       o documentar explícitamente que quedan fuera de alcance sin GPU NVIDIA (§2.1).
 * [ ] **T11** Definir la política de datos de obra: qué se sube a terceros, qué queda local
       (relevante si en el futuro se evalúa OpenDroneMap en VPS, §6).
+* [ ] **T17** **Definir cómo se estimará y reportará la incertidumbre de cada cota** (§11.1 bis).
+      Sin esto el documento no puede distinguir error de medición de desvío de obra.
+      Candidatos a decidir: dispersión de los residuales del ajuste cilíndrico, variación
+      de la escala entre frames, o error cuadrático de reproyección de COLMAP/MoGe.
+* [ ] **T18** Definir el formato de entrada del **proyecto de referencia** contra el que
+      comparar (D9): ¿DXF del proyecto, tabla de cotas, o sólo las posiciones de caños
+      previstas? Y la tolerancia de desviación admisible por elemento.
+* [ ] **T19** Definir qué se hace con los caños parcialmente ocultos o cortados por el
+      encuadre: ¿se reportan con marca de baja confianza, o se omiten?
 
 ### 13.2 Mejoras de V2
 
@@ -494,6 +530,8 @@ Reglas:
 * [ ] **T15** Métrica de calidad por frame y mapa de calor de solapamiento en la GUI.
 * [ ] **T16** Reevaluar MoGe-3 si en el futuro hay GPU NVIDIA o más disco: apunta
       específicamente a estructuras delgadas, que es el caso de los caños (ver §6).
+* [ ] **T20** Módulo de comparación con el proyecto (paso 7 del wizard, §12) y capa DXF
+      dedicada a los desvíos. Depende de T17 y T18.
 
 ### 13.4 Antes de instalar cualquier cosa
 
@@ -511,8 +549,9 @@ disponible primero** y sin que el usuario lo autorice. Presupuesto aproximado:
 
 ### 13.3 Decisiones ya resueltas (no reabrir sin motivo)
 
-* [x] D1–D8 (§4). Licencia libre, ORB, escala manual con ancho/alto, GUI wizard,
-      nombres con fecha y hora, V1 de un solo video, tolerancia 10 mm, Python 3.12.
+* [x] D1–D9 (§4). Licencia libre, ORB, escala manual con ancho/alto, GUI wizard,
+      nombres con fecha y hora, V1 de un solo video, tolerancia 10 mm, Python 3.12,
+      verificación post-instalación (no guía de instalación).
 * [x] **T9** Git inicializado, rama `main`, remote en `mclichas/fotogrametria`. 2 commits pusheados.
 
 ---
