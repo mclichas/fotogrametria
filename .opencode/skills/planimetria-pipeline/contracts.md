@@ -323,3 +323,32 @@ en `ACOTACIONES` (TODO T7: definir representación final).
 
 Validar con Pydantic v2. `distances.to_floor_axis_meters` se separó de
 `to_floor_clearance_meters` para no perder información al redondear a 3 decimales (R5).
+
+### Cada cota lleva su incertidumbre (D9, §11.1 bis)
+
+El producto **no compara contra los planos del proyecto**: documenta cómo quedó la obra.
+Por eso la incertidumbre es el único mecanismo de honestidad del documento. Sin ella,
+una estimación aparece con la misma autoridad que una medición con cinta métrica.
+
+Forma del dato en `SpatialMetricsReport`, a definir en T17:
+
+```python
+class Measurement(BaseModel):
+    value_meters: float
+    uncertainty_meters: float      # 1 sigma o intervalo, documentar cuál en T17
+    reliable: bool                 # uncertainty_meters <= 0.010 (D7)
+```
+
+Reglas de contrato:
+
+* **Ninguna cota se serializa sin `uncertainty_meters`.** Un campo `float` desnudo en
+  `distances` es un error de revisión, no un detalle de estilo.
+* `reliable=False` **no oculta la cota**: se reporta igual, marcada. Ocultarla deja un
+  hueco sin explicar en el documento.
+* El `metadata` del reporte incluye un veredicto global de calidad. Si la mayoría de las
+  cotas son `unreliable`, el veredicto dice que hay que repetir la captura.
+* La identificación del relevamiento (obra, ambiente, fecha, responsable — T21) va en
+  `metadata`, para que el documento sea rastreable meses después.
+
+Esto agrega campos a los modelos de M6 y a la capa `ACOTACIONES` del DXF. Resolver T17
+antes de escribir M6/M7.

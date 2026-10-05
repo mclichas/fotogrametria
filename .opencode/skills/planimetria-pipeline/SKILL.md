@@ -123,6 +123,12 @@ d = |A·x + B·y + C·z + D| / sqrt(A²+B²+C²) − R
 
 La pendiente es siempre en %, sobre la proyección horizontal, no sobre la longitud 3D.
 
+**Cada cota sale con su incertidumbre.** El producto documenta cómo quedó la obra, no
+compara contra los planos del proyecto (D9). Sin referencia externa, la incertidumbre es
+lo único que distingue una estimación de un dato medido. Formato `Measurement` y reglas
+en `contracts.md`; el método de estimación está pendiente en T17. Una cota sin
+`uncertainty_meters` es un error de revisión.
+
 ### M7: DXF es metres, con capas fijas
 
 `$INSUNITS = 6` (metros). Capas con color ACI fijo:
@@ -131,7 +137,7 @@ No inventar capas nuevas sin pedirlas.
 
 ## GUI
 
-Una sola ventana Tkinter con wizard de 8 pasos (§11 de AGENTS.md). Reglas:
+Una sola ventana Tkinter con wizard de 8 pasos (§12 de AGENTS.md). Reglas:
 
 * Cada paso sólo habilita el siguiente cuando el actual es válido.
 * Los trabajos pesados corren en hilo; la GUI se actualiza vía `after()`.
@@ -145,6 +151,7 @@ Una sola ventana Tkinter con wizard de 8 pasos (§11 de AGENTS.md). Reglas:
 - [ ] `pytest -q` verde.
 - [ ] `ruff check .` y `ruff format --check .` limpios.
 - [ ] Docstrings con unidades en todo parámetro numérico (`# metros`, `# m/s`, `# segundos`).
+- [ ] Toda cota serializada lleva `uncertainty_meters`. Nada de `float` desnudo en la salida.
 - [ ] Mensajes de error en español y accionables.
 - [ ] AGENTS.md actualizado si cambió una decisión o apareció un TODO nuevo.
 

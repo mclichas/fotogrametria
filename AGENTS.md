@@ -12,11 +12,25 @@ Aplicación modular en Python que procesa video/fotografías de ambientes en rem
 reconstruye la geometría 3D métricamente escalada, aísla cañerías y artefactos, y exporta
 planos CAD (`.dxf`) y reportes dimensionales (`.json`).
 
-Salida principal: **documento de verificación post-instalación**, no una guía de instalación.
-El cañería ya está instalado; el sistema documenta dónde quedó realmente, para contrastarlo
-contra el proyecto y detectar desvíos.
+Salida principal: **documentación de la obra tal como quedó** (*as-built*). El cañería
+ya está instalado; el sistema registra dónde quedó realmente.
+
+**No se compara contra los planos del proyecto.** El objetivo es documentar, no determinar
+si la instalación cumple lo proyectado (D9). Ver §1.1.
 
 **Tolerancia máxima de error: 10 mm** (decisión D7, §11.1).
+
+### 1.1 Qué es y qué no es el entregable
+
+| Es | No es |
+| :--- | :--- |
+| Registro de la ubicación real de cada caño | Juicio de cumplimiento del proyecto |
+| Cotas métricas con incertidumbre asociada | Comparación contra planos de referencia |
+| Insumo para obra futura,Ampliación o mantenimiento | Certificación de calidad de la instalación |
+
+El segundo punto tiene una consecuencia fuerte: **sin una referencia contra la cual
+comparar, la única forma que tiene el lector de saber si un número es un hecho o una
+estimación es la incertidumbre que el propio sistema reporta.** Por eso §11.1 bis.
 
 ---
 
@@ -82,7 +96,7 @@ Campos que deben existir ya en los modelos aunque la V1 no los use:
 | D6 | **Política de software 100 % libre** (ver §5). Nada de SIFT vía `opencv-contrib`, ni alternativas proprietarias | Requisito explícito del usuario |
 | D7 | **Tolerancia máxima de error: 10 mm.** Es un techo, no un objetivo | Por encima de 10 mm el plano no sirve para el propósito. Ver §11.1 |
 | D8 | **Python 3.12** para el venv | `open3d` llega a cp314 pero `ezdxf` se detiene en cp313 — §5.1 |
-| D9 | **El producto verifica una instalación ya realizada, no guía una instalación.** Documenta ubicaciones reales para contrastar contra el proyecto | Confirmado por el usuario 2026-10-05. Ver §1 y §11.1 bis |
+| D9 | **El producto documenta una instalación ya realizada, no guía una instalación.** Sin comparación contra los planos del proyecto: no se ingestan planos de referencia ni se emite juicio de cumplimiento | Confirmado por el usuario 2026-10-05. Ver §1 y §11.1 bis |
 
 ### 4.1 Consecuencia de D3 sobre el modelo `CalibrationData`
 
@@ -405,24 +419,32 @@ Consecuencia: **10 mm es un techo, no un objetivo.** El objetivo debe estar por 
 Si el error medido en obra se acerca a 10 mm, el resultado es inaceptable aunque formalmente
 cumpla el criterio.
 
-### 11.1 bis Por qué el tipo de error importa más que su magnitud
+### 11.1 bis La incertidumbre es parte del dato, no un adorno
 
-Al ser un documento de **verificación**, el software debe poder distinguir dos cosas que
-un instalador necesita separar:
+Antes (D9 v1) el producto comparaba contra los planos del proyecto. Se descartó: el
+objetivo es documentar cómo quedó la obra, no juzgar si cumple lo proyectado.
 
-* **Error de medición** (la reconstrucción falló) → hay que corregir o descartar el relevamiento.
-* **Desvío real de obra** (el caño quedó fuera de proyecto) → hay que levantar un reclamo
-  o una nota de obra.
+Eso elimina el módulo de comparación y, con él, la necesidad de distinguir *error de
+medición* de *desvío de obra*. Pero deja un problema peor:
 
-Si el error de medición es de 8 mm, un desvío real de 12 mm es indistinguible de él. Con
-tolerancia de 10 mm, todo desvío menor a ~20 mm queda dentro del ruido. **El software no
-debe presentar un desvío como significativo cuando está dentro del margen de error.**
+**Una cota sin incertidumbre es indistinguible de un dato medido con cinta métrica.**
 
-De ahí salen dos requisitos concretos que el SDD no pedía:
+El entregable son números en milímetros sobre un DXF que alguien va a usar para picar,
+ampliar o mantenimiento. Si el sistema escribe `x = 1247 mm` sin decir cuánto vale esa
+cifra, está presentando una estimación con la misma autoridad que una medición directa.
+No hay contra qué contrastar, así que **la incertidumbre es el único mecanismo de
+honestidad del documento**.
 
-1. Cada cota debe reportar su **incertidumbre estimada**, no sólo su valor.
-2. Los desvíos contra el proyecto deben marcarse como **dentro o fuera de tolerancia**,
-   y los que quedan dentro deben rotularse explícitamente como no concluyentes.
+De ahí tres requisitos concretos, que el SDD no pedía:
+
+1. Cada cota reporta su **incertidumbre estimada** (`±` en metros), no sólo su valor.
+2. Las cotas cuya incertidumbre supere la tolerancia de 10 mm se marcan
+   explícitamente como **no confiables**. No se ocultan ni se redondean: se rotulan.
+3. El reporte declara un **veredicto de calidad global** del relevamiento, para que el
+   lector sepa si el documento completo sirve o si hay que repetir la captura.
+
+Regla de redacción: en el JSON y en el DXF, un número sin incertidumbre asociada es un
+error de formato, no un detalle de estilo.
 
 ### 11.2 Criterios numéricos
 
@@ -475,11 +497,11 @@ cada uno desbloqueando el siguiente:
 4. **Reconstrucción** — progreso de COLMAP por sub-etapa (features, matching, sparse, dense).
 5. **Alineación** — factor de escala aplicado, residuo del plano de piso.
 6. **Segmentación** — nº de planos, caños y artefactos detectados; lista con checkboxes.
-7. **Análisis espacial** — tabla de cotas.
-8. **Comparación con el proyecto** — *(opcional, V2 — T17, T18, T20)*. Importar el
-   proyecto o las cotas de referencia y marcar cada elemento como **dentro de tolerancia /
-   fuera de tolerancia / no concluyente**. Ver D9 y §11.1 bis.
-9. **Exportación** — rutas de salida y botón para abrir carpeta.
+7. **Análisis espacial** — tabla de cotas, cada una con su incertidumbre. Las que superan
+   la tolerancia de 10 mm se muestran marcadas como no confiables.
+8. **Exportación** — rutas de salida y botón para abrir carpeta.
+
+Son 8 pasos. **No hay paso de comparación con el proyecto** (D9).
 
 Reglas:
 * Ningún paso avanza con datos inválidos: validación con mensajes en español y el error concreto.
@@ -512,15 +534,16 @@ Reglas:
       o documentar explícitamente que quedan fuera de alcance sin GPU NVIDIA (§2.1).
 * [ ] **T11** Definir la política de datos de obra: qué se sube a terceros, qué queda local
       (relevante si en el futuro se evalúa OpenDroneMap en VPS, §6).
-* [ ] **T17** **Definir cómo se estimará y reportará la incertidumbre de cada cota** (§11.1 bis).
-      Sin esto el documento no puede distinguir error de medición de desvío de obra.
-      Candidatos a decidir: dispersión de los residuales del ajuste cilíndrico, variación
-      de la escala entre frames, o error cuadrático de reproyección de COLMAP/MoGe.
-* [ ] **T18** Definir el formato de entrada del **proyecto de referencia** contra el que
-      comparar (D9): ¿DXF del proyecto, tabla de cotas, o sólo las posiciones de caños
-      previstas? Y la tolerancia de desviación admisible por elemento.
+* [ ] **T17** **Definir cómo se estima y reporta la incertidumbre de cada cota** (§11.1 bis).
+      **Bloqueante de M6/M7.** Sin referencia externa de comparación (D9), la incertidumbre
+      es el único mecanismo de honestidad del documento. Sin ella se entrega una estimación
+      vestida de dato medido. Candidatos: dispersión de residuales del ajuste cilíndrico,
+      variación de la escala entre frames, o error de reproyección del motor.
 * [ ] **T19** Definir qué se hace con los caños parcialmente ocultos o cortados por el
       encuadre: ¿se reportan con marca de baja confianza, o se omiten?
+* [ ] **T21** Definir la **identificación del relevamiento** en el JSON de salida: qué
+      datos identifican la obra (ambiente, fecha, responsable, lote) para que el documento
+      sea rastreable. Con T17 forma el bloque de metadatos del reporte.
 
 ### 13.2 Mejoras de V2
 
@@ -530,10 +553,23 @@ Reglas:
 * [ ] **T15** Métrica de calidad por frame y mapa de calor de solapamiento en la GUI.
 * [ ] **T16** Reevaluar MoGe-3 si en el futuro hay GPU NVIDIA o más disco: apunta
       específicamente a estructuras delgadas, que es el caso de los caños (ver §6).
-* [ ] **T20** Módulo de comparación con el proyecto (paso 7 del wizard, §12) y capa DXF
-      dedicada a los desvíos. Depende de T17 y T18.
 
-### 13.4 Antes de instalar cualquier cosa
+### 13.3 Descartado — no reabrir sin motivo del usuario
+
+* [x] **T18** Formato de entrada del proyecto de referencia. **Descartado 2026-10-05.**
+      El usuario aclaró que no se usan los planos del proyecto. No hay módulo de
+      comparación, ni ingesta de DXF de referencia, ni capa de desvíos.
+* [x] **T20** Módulo de comparación con el proyecto. **Descartado** por lo mismo. La V1
+      queda en los 7 módulos de la SDD, sin ampliación de alcance.
+
+### 13.4 Decisiones ya resueltas (no reabrir sin motivo)
+
+* [x] D1–D9 (§4). Licencia libre, ORB, escala manual con ancho/alto, GUI wizard,
+      nombres con fecha y hora, V1 de un solo video, tolerancia 10 mm, Python 3.12,
+      documentación as-built sin comparación con planos del proyecto.
+* [x] **T9** Git inicializado, rama `main`, remote en `mclichas/fotogrametria`. 2 commits pusheados.
+
+### 13.5 Antes de instalar cualquier cosa
 
 El disco es escaso (~17.7 GB, R11). **No instalar dependencias sin medir el espacio
 disponible primero** y sin que el usuario lo autorice. Presupuesto aproximado:
@@ -546,13 +582,6 @@ disponible primero** y sin que el usuario lo autorice. Presupuesto aproximado:
 | `moge-2-vitl-normal` | 2.5 GB | Evitar |
 | COLMAP nocuda descomprimido | ~3.1 GB | Evitar salvo decisión explícita |
 | Open3D | ~400 MB | Necesario en cualquier escenario |
-
-### 13.3 Decisiones ya resueltas (no reabrir sin motivo)
-
-* [x] D1–D9 (§4). Licencia libre, ORB, escala manual con ancho/alto, GUI wizard,
-      nombres con fecha y hora, V1 de un solo video, tolerancia 10 mm, Python 3.12,
-      verificación post-instalación (no guía de instalación).
-* [x] **T9** Git inicializado, rama `main`, remote en `mclichas/fotogrametria`. 2 commits pusheados.
 
 ---
 
