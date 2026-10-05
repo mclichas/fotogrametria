@@ -1,0 +1,21 @@
+# Normalizar fin de línea en el repositorio: LF dentro, CRLF al checkout en Windows.
+# Evita el warning "LF will be replaced by CRLF" en cada commit.
+* text=auto eol=lf
+
+# Windows
+*.bat text eol=crlf
+*.cmd text eol=crlf
+*.ps1 text eol=crlf
+
+# Datos binarios: no tocar
+*.ply binary
+*.pt binary
+*.pth binary
+*.safetensors binary
+*.onnx binary
+*.db binary
+*.jpg binary
+*.png binary
+*.mp4 binary
+*.mov binary
+*.dxf binary
