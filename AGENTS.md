@@ -331,6 +331,64 @@ la imagen, no desde la nube**, porque *"the low texture of the pipes usually res
 very sparse point cloud"*. Es el riesgo inverso al de MoGe: si la textura del caño es baja,
 COLMAP/MVS no densifica nada. Otra razón para medir T2 en vez de suponerlo.
 
+#### El solapamiento: corrección al planteo inicial de bajarlo a 80 %
+
+El usuario propuso muestrear las imágenes más nítidas y bajar el solapamiento de 95 % a
+80 % si la restricción resulta muy alta, aceptando "más ruido en la nube". La primera parte
+es correcta; la segunda tiene dos problemas, y los dos importan.
+
+**Problema 1 — el knee está en 90 %, no en 95 %.** De la tabla de ellos:
+
+| Solapamiento | Comportamiento medido |
+| :--- | :--- |
+| 70 % | insuficiente incluso para precisión sub-milimétrica |
+| 80–85 % | **error de longitud apenas baja de 10 %** |
+| 90 % | estable |
+| 95 % | prácticamente idéntico a 90 % |
+
+95 % es marginal sobre 90 %. Si hay que bajar, bajar a 90 % pierde casi nada. 80 % entra en
+la zona degradada. **No es un compromiso simétrico.**
+
+**Problema 2 — el modo de falla no es ruido, es falta de geometría en el objeto chico.**
+Textual de ellos: *"the radius estimation accuracies for the smallest pipe was impacted
+more by the increase in the image overlap than say the largest pipe"*. Menor solapamiento no
+agrega ruido: **le saca puntos al caño chico.** Nuestro caso es el extremo de esa curva
+(25 mm de radio contra los caños de 100 mm o más de sus experimentos).
+
+Son fallas distintas con respuestas distintas. La que nos importa es un caño que no aparece,
+o cuyo radio sale mal. "Aceptar más ruido" no describe ese riesgo ni lo mitiga.
+
+#### El muestreo adaptativo: la vía que no es un compromiso
+
+Su `Algorithm 1` **no usa un solapamiento uniforme**: genera más frames donde la
+orientación relativa entre frames consecutivos cambia rápido, y menos donde la cámara está
+quieta. Eso permite mantener solapamiento alto **donde está el caño** y gastar menos en los
+tramos muertos. No es elegir entre "muchos frames en todo" y "pocos bien elegidos".
+
+Relacionado: el filtrado por nitidez (el `blur_threshold` de T4) es independiente del
+solapamiento, pero **no es gratis**. Cada frame descartado por borroso es un frame que hay
+que reemplazar por otro más lejano para sostener el mismo solapamiento. **Rechazo por
+nitidez y solapamiento compiten por el mismo presupuesto de frames.** Ese es el trueque
+real, y conviene a favor nuestro: el presupuesto que se libera al descartar borrosos se
+puede gastar en subir solapamiento justo en los tramos que los perdían.
+
+#### Por qué el número no se puede fijar antes de T2
+
+Porque **el costo del solapamiento depende del motor**, y no en la misma proporción:
+
+| Motor | Costo por frame | Consecuencia |
+| :--- | :--- | :--- |
+| COLMAP (denso) | ~2 min por imagen 4K (medido por ellos) | 90 % es carísimo. 300 imágenes = 10 h |
+| MoGe-2 `vits` | ~3-8 s en CPU | **~15× más barato.** El solapamiento alto es barato |
+
+Con MoGe, la restricción del 95 % es bastante menos restrictiva de lo que parece. Fijar el
+número antes de resolver T2 es fijarlo sobre una suposición que puede dar al revés.
+
+**Regla:** el objetivo es solapamiento alto (≥ 90 %) por defecto, con muestreo adaptativo,
+y **el piso se decide contra el presupuesto de tiempo medido en esta máquina**, no contra
+el 95 % del paper. Si al final hay que bajar de 90 %, es porque la máquina no da, y eso se
+documenta como tal. No es el criterio de diseño.
+
 #### Repositorios que confirman nuestro stack
 
 | Repos | Stars | Licencia | Activo | Veredicto |
@@ -526,7 +584,8 @@ AAAAMMDD-HHMMSS_<descripcion>.<ext>
 | R11 | **Disco libre escaso: ~17.7 GB.** PyTorch CPU ~2 GB, pesos MoGe ~134 MB a 2.5 GB, COLMAP nocuda ~3.1 GB descomprimido | No instalar nada sin medir antes. Preferir el modelo `vits` (134 MB). No evaluar MoGe-3 aquí |
 | R12 | Latencia de MoGe-2 en CPU (~3-8 s/frame) rompe el criterio E2E de < 8 min por sí sola | Reducir nº de frames con ORB (submuestreo) o recortar el criterio (T10) |
 | R13 | **Baja textura del caño** produce nubes ralas: *"low texture of the pipes usually results in a very sparse point cloud"* (literatura 2023). Es el riesgo inverso al de MoGe y afecta a COLMAP/MVS | Medir en T3 la densidad real **sobre un caño**, no la densidad global de la escena (§6 bis) |
-| R14 | El precedente publicado con 5.4 mm de error de radio **exige ≥ 95 % de solapamiento** entre frames, más de lo que da un video de celular normal | Dimensionar T4 con ese número como techo. Medir el solapamiento real de la captura antes de fijar `fps_sampling_rate` |
+| R14 | El precedente publicado con 5.4 mm de error de radio **exige ≥ 95 % de solapamiento** entre frames, más de lo que da un video de celular normal | Dimensionar T4 con ese número como techo. Medir el solapamiento real de la captura antes de fijar el piso. **Ojo:** el knee está en 90 %, no en 95 %. Ver §6 bis |
+| R15 | El muestreo adaptativo (más frames donde la cámara se mueve) reduce el número de frames, pero **nunca se validó con un objeto tan chico como 25 mm de radio**: su experimento usó caños industriales de 100 mm o más | El modo de falla no es "más ruido" sino **caño chico sin geometría suficiente**, que es peor y no se ve como ruido. T3 debe medir densidad **sobre el caño**, no en la escena (§6 bis) |
 
 ---
 
@@ -662,10 +721,13 @@ Reglas:
       o mantener COLMAP completo. Bloquea el diseño de M3 y M4.
 * [ ] **T3** Validar MoGe-2 sobre una imagen real de obra con cotas conocidas: medir error
       real sobre un caño antes de prometer los umbrales del SDD (ver §6).
-* [ ] **T4** Fijar umbrales de calidad de video: `fps_sampling_rate`, `blur_threshold`,
-      nº mínimo de matches ORB para declarar solapamiento válido. **El solapamiento es el
+* [ ] **T4** Fijar umbrales de calidad de video: `blur_threshold`, nº mínimo de matches ORB
+      para declarar solapamiento válido, y el piso de solapamiento. **El solapamiento es el
       parámetro más sensible del sistema**, no el más trivial: el único precedente con
-      error de 5.4 mm exige ≥ 95 % (R14). Ver §6 bis.
+      error de 5.4 mm exige ≥ 95 % (R14).
+      **El piso se fija después de T2, no antes**, porque su costo depende del motor: con
+      COLMAP denso es ~2 min por imagen 4K, con MoGe-2 es ~15× más barato. Objetivo ≥ 90 %
+      con muestreo adaptativo, no uniforme. Ver §6 bis, "El solapamiento".
 * [ ] **T5** Definir `distance_threshold` del RANSAC de piso para suelos irregulares.
 * [ ] **T6** Definir parametrización de DBSCAN y del ajuste cilíndrico (radio, RMSE)
       para diámetros reales de 1/2" a 3".
