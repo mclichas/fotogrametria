@@ -79,7 +79,6 @@ Campos que deben existir ya en los modelos aunque la V1 no los use:
 | D6 | **Política de software 100 % libre** (ver §5). Nada de SIFT vía `opencv-contrib`, ni alternativas proprietarias | Requisito explícito del usuario |
 | D7 | **Tolerancia máxima de error: 10 mm.** Es un techo, no un objetivo | Por encima de 10 mm el plano no sirve para el propósito. Ver §11.1 |
 | D8 | **Python 3.12** para el venv | `open3d` llega a cp314 pero `ezdxf` se detiene en cp313 — §5.1 |
-| D8 | **Python 3.12** para el venv del proyecto | `open3d` llega a cp314 pero `ezdxf` se detiene en cp313. 3.12 tiene wheels de todo — §5.1 |
 
 ### 4.1 Consecuencia de D3 sobre el modelo `CalibrationData`
 
