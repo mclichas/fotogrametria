@@ -290,7 +290,7 @@ def _vista(_=None):
                                          x2_w.value - x1_w.value,
                                          y2_w.value - y1_w.value,
                                          fill=False, edgecolor="red", linewidth=2))
-        _ax.set_title("Rectángulo rojo = caja azul (cara de frente). Ajustá los sliders.")
+        _ax.set_title(f"Rojo = ({x1_w.value},{y1_w.value}) a ({x2_w.value},{y2_w.value}) | {x2_w.value - x1_w.value} x {y2_w.value - y1_w.value} px")
         plt.show()
 
 for _w in (x1_w, x2_w, y1_w, y2_w):
@@ -309,8 +309,11 @@ cells.append(
         """# @title 8. Escala: px/m, distorsión (D3) y error métrico del objeto de referencia
 assert ancho_w.value > 0 and alto_w.value > 0, "Falta el ancho/alto reales (celda 7)."
 x1, y1, x2, y2 = x1_w.value, y1_w.value, x2_w.value, y2_w.value
+if x2 < x1: x1, x2 = x2, x1   # tolera sliders invertidos
+if y2 < y1: y1, y2 = y2, y1
 _wpx, _hpx = x2 - x1, y2 - y1
-assert _wpx > 0 and _hpx > 0, "Rectángulo inválido (x2>x1, y2>y1)."
+assert _wpx > 0 and _hpx > 0, "Rectángulo inválido (x1==x2 o y1==y2 tras normalizar): mové los sliders."
+print(f"Caja usada: x1={x1} y1={y1} x2={x2} y2={y2} ({_wpx} x {_hpx} px)")
 
 pxmx = _wpx / ancho_w.value
 pxmy = _hpx / alto_w.value
@@ -366,7 +369,7 @@ def _vista2(_=None):
                                           cx2_w.value - cx1_w.value,
                                           cy2_w.value - cy1_w.value,
                                           fill=False, edgecolor="red", linewidth=2))
-        _ax2.set_title("Rectángulo rojo = tramo del caño a medir (sin fittings).")
+        _ax2.set_title(f"Rojo = ({cx1_w.value},{cy1_w.value}) a ({cx2_w.value},{cy2_w.value}) | {cx2_w.value - cx1_w.value} x {cy2_w.value - cy1_w.value} px")
         plt.show()
 
 for _w in (cx1_w, cx2_w, cy1_w, cy2_w):
@@ -385,7 +388,9 @@ cells.append(
         """# @title 10. Cálculo del caño: cordón 3D, densidad y veredicto parcial
 assert diam_w.value > 0, "Falta el diámetro real (celda 9)."
 _x1, _y1, _x2, _y2 = cx1_w.value, cy1_w.value, cx2_w.value, cy2_w.value
-assert _x2 > _x1, "Caja inválida (x2 > x1)."
+if _x2 < _x1: _x1, _x2 = _x2, _x1   # tolera sliders invertidos
+if _y2 < _y1: _y1, _y2 = _y2, _y1
+assert _x2 > _x1, "Caja inválida (x1 == x2): mové los sliders."
 y0 = (_y1 + _y2) // 2
 _cols = np.arange(_x1, _x2 + 1)
 _d_row = pts[y0, _cols, 2]  # profundidad sobre la fila media de la caja
