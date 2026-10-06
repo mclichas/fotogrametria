@@ -19,5 +19,8 @@ AAAAMMDD-HHMMSS_<descripcion>.<ext>
 ## Notas
 
 * Todo lo generado (frames extraídos, COLMAP, nubes de puntos, intermedios) va a `work/`.
-* Los entregables finales (`floor_plan_3d.dxf`, `metrics_report.json`) van a `outputs/`.
+* Los entregables finales (`floor_plan_3d.svg` en V1, `metrics_report.json`) van a `outputs/`.
+* Esta carpeta vive en la **carpeta de Google Drive de la cuenta dedicada del proyecto**
+  (D10/AGENTS.md); la carga es manual por el navegador. El pipeline no modifica ni
+  renombra estos originales.
 * Borrar `work/` no pierde datos: sólo descarta el progreso de reconstrucción.

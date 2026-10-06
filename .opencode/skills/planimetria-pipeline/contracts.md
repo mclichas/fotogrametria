@@ -255,9 +255,12 @@ Tabla de diámetros comerciales: TODO T8 (ANSI / ISO / ambos).
 
 ## M7 `exporter.py`
 
-Capas con color ACI fijo:
+**V1 (D12): salida en SVG**, escrito a mano (XML, sin dependencia). **V2: DXF** con
+`ezdxf.new("R2018")`, `doc.header["$INSUNITS"] = 6` (metros).
 
-| Capa | ACI | Contenido |
+Capas con color fijo (mismas en SVG y DXF, con `svg:stroke`/`fill` o ACI):
+
+| Capa | color/ACI | Contenido |
 | :--- | :--- | :--- |
 | `PAREDES` | 7 | contorno de paredes, planta + alzado |
 | `PISO_TECHO` | 8 | contorno del piso, altura de techo |
@@ -265,9 +268,9 @@ Capas con color ACI fijo:
 | `ARTEFACTOS` | 5 | OBB de artefactos |
 | `ACOTACIONES` | 3 | cotas lineales y radio |
 
-DXF: `ezdxf.new("R2018")`, `doc.header["$INSUNITS"] = 6` (metros).
-Planta 2D: proyectar a `Z=0`. Cañas: línea de eje 3D en `CANERIAS` + cota de radio
-en `ACOTACIONES` (TODO T7: definir representación final).
+SVG (V1): `<svg width/height>` en **mm**, coordenadas en mm, cotas como texto vectorial
+(`<text>`), cada capa en un `<g id="...">`. Planta 2D: proyectar a `Z=0`. Cañas: línea de
+eje en `CANERIAS` + cota de radio en `ACOTACIONES` (TODO T7: definir representación final).
 
 ---
 
@@ -350,5 +353,5 @@ Reglas de contrato:
 * La identificación del relevamiento (obra, ambiente, fecha, responsable — T21) va en
   `metadata`, para que el documento sea rastreable meses después.
 
-Esto agrega campos a los modelos de M6 y a la capa `ACOTACIONES` del DXF. Resolver T17
-antes de escribir M6/M7.
+Esto agrega campos a los modelos de M6 y a la capa `ACOTACIONES` del plano (SVG V1 / DXF
+V2). Resolver T17 antes de escribir M6/M7.

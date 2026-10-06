@@ -10,7 +10,8 @@ Repositorio: https://github.com/mclichas/fotogrametria
 
 Aplicación modular en Python que procesa video/fotografías de ambientes en remodelación,
 reconstruye la geometría 3D métricamente escalada, aísla cañerías y artefactos, y exporta
-planos CAD (`.dxf`) y reportes dimensionales (`.json`).
+planos en **imágenes vectoriales (`.svg`) en V1** y reportes dimensionales (`.json`). El
+formato CAD (`.dxf`) queda para V2 (D12).
 
 Salida principal: **documentación de la obra tal como quedó** (*as-built*). El cañería
 ya está instalado; el sistema registra dónde quedó realmente.
@@ -42,18 +43,20 @@ estimación es la incertidumbre que el propio sistema reporta.** Por eso §11.1 
 | Decisiones de arquitectura | Definidas (ver §4) |
 | Motor de reconstrucción | **Por decidir** — ver §6 |
 | Código | **No iniciado** |
-| Entorno objetivo | Windows, Python 3.12 (aún no creado) |
-| Hardware | Intel i7-10610U, 4 núcleos, 15.6 GB RAM, **GPU Intel integrada, sin NVIDIA** |
+| Entorno objetivo | **Colab** (runtime 2026.07): Python 3.12.13, GPU T4, disco efímero ~100 GB — D11 |
+| Hardware | Intel i7-10610U, 4 núcleos, 15.6 GB RAM, **GPU Intel integrada, sin NVIDIA** — queda como máquina de desarrollo/navegación (D11) |
 | Disco libre | **~17.7 GB** — restricción activa (R11) |
 | COLMAP | No instalado |
 | Git | Inicializado, rama `main`, remoto `mclichas/fotogrametria` (T9 completo) |
 
 ### 2.1 Hardware de la máquina de trabajo
 
-Restricción determinante para la arquitectura. Sin GPU NVIDIA, `patch_match_stereo` de COLMAP
-no es viable, y el criterio del SDD de > 500,000 puntos de nube densa en < 3 min es inalcanzable
-aquí. Cualquier criterio de aceptación que dependa de densidad o tiempo debe medirse en esta
-máquina antes de asumirlo.
+~~Restricción determinante para la arquitectura.~~ **CORREGIDO 2026-10-06 (D11):** el
+producto corre en Colab, así que estas limitaciones dejan de condicionar el runtime. Sin
+GPU NVIDIA, `patch_match_stereo` de COLMAP no es viable **en local**, y el criterio del SDD
+de > 500,000 puntos de nube densa en < 3 min es inalcanzable **en local** — todo pasa a
+medirse en Colab (T4, T10). La máquina local queda como navegador; los archivos van a
+Drive por carga manual (D10), sin Drive for Desktop.
 
 ### 2.2 Repositorio
 
@@ -93,23 +96,32 @@ la demanda y el patrón de uso".
 
 **Qué NO resuelve:**
 
-1. **D4 — el producto sigue siendo de escritorio.** El wizard Tkinter no corre en Colab
+1. ~~**D4 — el producto sigue siendo de escritorio.** El wizard Tkinter no corre en Colab
    (VM headless, sin display). La GUI y `data/ingest` son locales. Colab puede ser un
-   motor remoto, nunca la interfaz.
+   motor remoto, nunca la interfaz.~~ **CORREGIDO 2026-10-06 (D11).** El usuario decidió
+   que el wizard viva en el propio notebook de Colab: no hace falta display físico, Colab
+   **es** la interfaz y el runtime. La máquina local queda como navegador; los archivos
+   van a Drive por carga manual, sin Drive for Desktop (D10).
 2. **R10/T11 — el bloqueo real, y es decisión del usuario.** Subir video o frames de obra a
    Google es subir datos de cliente a un tercero. T11 está abierto. En T3 se esquiva si la
    foto de prueba no es de un cliente (obra propia, u objeto con cota conocida).
-3. **D6 — matiz que decide el usuario.** Precedente ya registrado (§6): OpenDroneMap en VPS
+3. ~~**D6 — matiz que decide el usuario.** Precedente ya registrado (§6): OpenDroneMap en VPS
    = *"el software corre libre, la infraestructura se alquila"*. El stack de Colab (torch,
    COLMAP, opencv, open3d) es 100 % libre, así que por esa lógica Colab sería solo
    infraestructura. La diferencia con la VPS es que esta es de Google, que inspecciona lo
-   que sube. Ese matiz es lo que hay que decidir.
-4. **Es efímero:** `work/<source_id>/` no sobrevive a la sesión (persistir en Google Drive)
-   y los pasos largos deben poder resumirse, que ya lo exige el wizard (§12).
-5. **Los tiempos no se transfieren.** Medir T10/E2E en T4 no predice nada del i7-10610U si
-   el producto corre local. **La precisión sí se transfiere:** T3 mide error métrico, que no
-   depende del hardware; el tiempo, sí. Consecuencia: **T2 y T10 deben declarar en qué
-   hardware se midió cada cifra.**
+   que sube. Ese matiz es lo que hay que decidir.~~ **DECIDIDO 2026-10-06 (D11):** el usuario
+   eligió que el producto corra entero en Colab, con lo que acepta el precedente de la VPS:
+   el software es libre, la infraestructura se alquila. Lo que queda vivo de este punto es
+   **T11**: la autorización del cliente antes de subir su footage a Google.
+4. ~~**Es efímero:** `work/<source_id>/` no sobrevive a la sesión (persistir en Google Drive)
+   y los pasos largos deben poder resumirse, que ya lo exige el wizard (§12).~~
+   **RESUELTO 2026-10-06 (D10):** `work/` vive en Drive y `session.json` permite retomar;
+   los pasos largos se particionan para sobrevivir a los límites de sesión de Colab.
+5. ~~**Los tiempos no se transfieren.** Medir T10/E2E en T4 no predice nada del i7-10610U si
+   el producto corre local.~~ **CORREGIDO 2026-10-06 (D11).** El producto corre en Colab:
+   los tiempos medidos en T4 **sí** representan el producto. La precisión se transfiere
+   igual que antes. Consecuencia: **T2 y T10 deben declarar el hardware de cada medida**
+   (ahora: Colab T4, GPU o CPU según el paso).
 
 **Consecuencia para la secuencia de trabajo:** Colab adelanta T3 — se puede validar MoGe-2
 sin gastar un byte de los 17,7 GB y sin instalar Python. Si T2 y T11 salen por lo remoto, el
@@ -128,23 +140,28 @@ anterior. Queda registrado como **D10**.
 
 Cómo se concreta:
 
+* **Cuenta dedicada al proyecto:** se usa una cuenta de Google creada para el proyecto cuya
+  cuota no está gastada; **la cuenta personal del usuario queda fuera** de esta vía.
+  Conviene chequear la cuota real de esa cuenta antes de planificar (2026-03-09 en adelante:
+  5 GB + 10 GB verificando teléfono; anteriores: 15 GB — ver tabla abajo).
 * En Colab: `from google.colab import drive; drive.mount('/content/drive')`. Monta la
-  carpeta con las credenciales de la cuenta del usuario, en RW. Eso es "darle acceso":
+  carpeta con las credenciales de la cuenta dedicada, en RW. Eso es "darle acceso":
   no hay nada más que configurar.
-* En local: **Drive for Desktop** apuntando a la misma carpeta. **Modo espejo (mirror), no
-  streaming** — en streaming los archivos no están realmente en disco y OpenCV
-  descargaría cada video bajo demanda al leerlo (o fallaría sin red).
+* En local: **carga manual por el navegador** (`drive.google.com`). El usuario decidió no
+  usar Drive for Desktop: los archivos se suben a mano a la carpeta de la cuenta dedicada.
+  Consecuencia práctica: en la máquina local no hay carpeta local espejada; todo lo que el
+  pipeline necesita está en Drive.
 * El estado del pipeline ya tenía dónde vivir: `work/<source_id>/session.json` (§12) y el
   requisito de ser **resumible por paso**. Cada paso escribe su entregable en Drive —
-  frames aceptados, `CalibrationData`, nube, segmentación, cotas, `.dxf`/`.json` — y una
-  sesión nueva monta Drive, lee `session.json` y arranca del paso pendiente. Drive sólo
-  cambia *dónde* vive el estado, no el diseño del wizard.
+  frames aceptados, `CalibrationData`, nube, segmentación, cotas, `.svg`/`.json` (V1, D12) —
+  y una sesión nueva monta Drive, lee `session.json` y arranca del paso pendiente. Drive
+  sólo cambia *dónde* vive el estado, no el diseño del wizard.
 
 **Límites prácticos (datos verificados 2026-10-06):**
 
 | Tema | Dato |
 | :--- | :--- |
-| Cuota gratuita | **15 GB** compartidos entre Drive, Gmail y Fotos. **Ojo:** cuentas de Google creadas desde el 2026-03-09 arrancan con **5 GB** (+10 GB verificando un teléfono). Conviene checar la cuota real antes de planificar |
+| Cuota gratuita de la cuenta dedicada | **15 GB** compartidos entre Drive, Gmail y Fotos, si la cuenta es anterior al 2026-03-09. Cuentas creadas desde esa fecha arrancan con **5 GB** (+10 GB verificando un teléfono). **Chequear la cuota real de la cuenta dedicada antes de planificar** |
 | Montaje FUSE en Colab | Sobre red: **lento con miles de archivos chicos**. Patrón: copiar el lote de frames a `/content` (disco local del VM, ~100 GB), procesar ahí, y devolver sólo resultados |
 | Video crudo | ~100-200 MB por minuto de 1080p (H.264 ~17 Mbps). Es el ítem grande de la cuota |
 
@@ -193,7 +210,9 @@ Campos que deben existir ya en los modelos aunque la V1 no los use:
 | D7 | **Tolerancia máxima de error: 10 mm.** Es un techo, no un objetivo | Por encima de 10 mm el plano no sirve para el propósito. Ver §11.1 |
 | D8 | **Python 3.12** para el venv | `open3d` llega a cp314 pero `ezdxf` se detiene en cp313 — §5.1 |
 | D9 | **El producto documenta una instalación ya realizada, no guía una instalación.** Sin comparación contra los planos del proyecto: no se ingestan planos de referencia ni se emite juicio de cumplimiento | Confirmado por el usuario 2026-10-05. Ver §1 y §11.1 bis |
-| D10 | **`data/ingest` y los datos de obra viven en una carpeta privada de Google Drive**, con acceso de lectura y escritura desde Colab. La persistencia del pipeline (entregables de cada paso + `session.json`) por la misma vía | Propuesta del usuario 2026-10-06. Resuelve la efimeridad de Colab y el almacenamiento del usuario. **Condicionada:** la data de clientes reales queda pendiente de T11. Ver §2.3 |
+| D10 | **`data/ingest` y los datos de obra viven en una carpeta privada de Google Drive**, con acceso de lectura y escritura desde Colab. La persistencia del pipeline (entregables de cada paso + `session.json`) por la misma vía. **Cuenta de Google dedicada al proyecto** (no la personal, que está llena). La carga a Drive es **manual**, sin Drive for Desktop | Confirmado por el usuario 2026-10-06 (cuenta dedicada + carga manual). Resuelve la efimeridad de Colab y el almacenamiento del usuario. **Condicionada:** la data de clientes reales queda pendiente de T11. Ver §2.3 |
+| D11 | **El producto corre entero en Colab**: el wizard es un notebook (ipywidgets + `matplotlib`), no una ventana Tkinter local. La máquina local queda como navegador; los archivos van a Drive por **carga manual** (D10), sin Drive for Desktop. Se cae la restricción de hardware local (R7/R11/R12) para el runtime | Decisión del usuario 2026-10-06. D4 sigue en pie como requisito (wizard paso a paso); cambia la implementación. Ver §12 |
+| D12 | **La salida de la V1 son imágenes vectoriales (`.svg`), no `.dxf`.** El formato CAD (`ezdxf`, `$INSUNITS=6`) queda para V2. Si la PoC se valida, se evalúa el salto a DXF | Decisión del usuario 2026-10-06, para la prueba de concepto. El SVG se escribe a mano (XML), sin dependencia nueva; la V1 no necesita `ezdxf` (D6) |
 
 ### 4.1 Consecuencia de D3 sobre el modelo `CalibrationData`
 
@@ -229,9 +248,9 @@ Todas con licencia libre. No agregar dependencias sin verificar su licencia.
 | Geometría métrica monocular (candidata) | `moge-2` (Microsoft) | MIT | Sustituto o complemento de COLMAP — ver §6 |
 | Clustering DBSCAN | `scikit-learn` | BSD-3-Clause | Open3D no expone DBSCAN |
 | Optimización numérica (ajuste cilíndrico) | `scipy` | BSD-3-Clause | `scipy.optimize.least_squares` |
-| Exportación DXF | `ezdxf` | MIT | Único mantenedor activo de DXF en Python |
+| Exportación CAD (V2) | `ezdxf` | MIT | Único mantenedor activo de DXF en Python. **D12:** la V1 exporta SVG (escrito a mano, XML) y no necesita `ezdxf` |
 | Validación de datos | `pydantic` v2 | MIT | Modelos de entrada/salida |
-| GUI | `tkinter` (stdlib) | PSF | + `opencv` para visualización de imagen |
+| GUI | `ipywidgets` + `matplotlib` | BSD-3-Clause / BSD-based | Wizard en notebook de Colab (D11). `matplotlib` para dibujar el rectángulo de calibración sobre el frame |
 | Tests | `pytest` | MIT | |
 
 **Rechazadas y por qué:**
@@ -246,6 +265,10 @@ Todas con licencia libre. No agregar dependencias sin verificar su licencia.
 ### 5.1 Versiones verificadas en PyPI (2026-10-05)
 
 Verificado contra la API de PyPI. **No asumir versiones: comprobar antes de fijar.**
+**Nota D11 (2026-10-06):** la tabla siguiente es el registro histórico de wheels
+`win_amd64`, que impulsó D8 (3.12). Desde D11 el runtime es **Linux/manylinux en Colab**,
+donde el conflicto `open3d`/`ezdxf` no existe; las versiones igual se fijan desde esta
+tabla, pero verificar contra PyPI en el momento de instalar.
 
 | Paquete | Última | Wheels win_amd64 | Nota |
 | :--- | :--- | :--- | :--- |
@@ -806,7 +829,7 @@ nada más. No reconsiderar como motor de reconstrucción.
                                           │
                               M6 spatial_analyzer ─> SpatialMetricsReport
                                           │
-                              M7 exporter ─> floor_plan_3d.dxf + metrics_report.json
+                              M7 exporter ─> floor_plan_3d.svg (V1, D12) / .dxf (V2) + metrics_report.json
 ```
 
 Cada módulo es un archivo en `modules/` con dataclasses/pydantic explícitas
@@ -821,7 +844,13 @@ de entrada y salida, y excepciones de dominio propias.
 
 ## 8. Estructura de directorios
 
+El **código** vive en el repo (GitHub, clonado por el notebook de Colab). Los **datos y
+entregables** viven en la carpeta privada de Google Drive (D10), en la **cuenta dedicada
+del proyecto**; se suben/bajan por **carga manual** en el navegador, sin Drive for Desktop
+ni carpeta local espejada (D10/D11).
+
 ```text
+Repositorio (GitHub — código):
 .
 ├── AGENTS.md                     # esta memoria
 ├── .opencode/skills/             # skills de proyecto (pipeline, tests)
@@ -829,16 +858,18 @@ de entrada y salida, y excepciones de dominio propias.
 ├── prompt para desarrollo ...md  # SDD de origen (no editar)
 ├── modules/                      # código de los 7 módulos
 ├── tests/                        # pytest, TC-MOD1..TC-MOD7
-├── data/
-│   └── ingest/                   # VÍDEOS Y FOTOS DE ENTRADA (el usuario coloca aquí)
-├── docs/
-│   └── referencias/              # fichas de papers y repos. CONTEXTO, no requisito
-├── work/                         # generado: frames, nubes, intermedios
-└── outputs/                      # entregables: .dxf y .json
+└── docs/
+    └── referencias/              # fichas de papers y repos. CONTEXTO, no requisito
+
+Carpeta de Google Drive (D10) — datos de obra:
+data/ingest/                      # VÍDEOS Y FOTOS DE ENTRADA (el usuario coloca aquí, a mano)
+work/                             # generado: frames, nubes, intermedios
+outputs/                          # entregables: .svg (V1) / .dxf (V2) y .json
 ```
 
 Regla dura: **nada generado se escribe en `data/`**. `work/` es desechable y se puede
-borrar sin perder el original.
+borrar sin perder el original (vale igual en Drive: los intermedios pesados se limpian al
+exportar — §2.3).
 
 Regla sobre `docs/referencias/`: es **contexto, no requisito**. Contiene fichas de papers
 y repositorios con lo que midieron otros. No se importa nada de ahí, no define contratos, y
@@ -865,18 +896,18 @@ AAAAMMDD-HHMMSS_<descripcion>.<ext>
 
 | # | Riesgo | Mitigación |
 | :--- | :--- | :--- |
-| R1 | **Conflicto de wheels por versión de Python.** `open3d` llega a cp314 pero `ezdxf` se detiene en cp313 | Usar Python **3.12** (D8). Verificar antes de fijar dependencias — §5.1 |
-| R2 | COLMAP no instalado en Windows | Sólo aplica si se confirma COLMAP como motor (§6). Descarga del binario (GUI o CLI) |
-| R3 | Criterio "< 3 min densificación de 40 imágenes" sin GPU es optimista | Medir en la máquina real y recalibrar el umbral (T10) |
+| R1 | **Conflicto de wheels por versión de Python.** `open3d` llega a cp314 pero `ezdxf` se detiene en cp313 → obligó a elegir 3.12 (D8). **Con D11 el runtime es Linux/Colab (manylinux), donde ese conflicto no aparece** (§2.3) | Usar Python **3.12** (D8; Colab trae 3.12.13). Verificar antes de fijar dependencias — §5.1 |
+| R2 | COLMAP no instalado en Windows | Sólo aplica si se confirma COLMAP como motor (§6). **Con D11 se instala en el runtime de Colab (Linux), no en Windows** |
+| R3 | Criterio "< 3 min densificación de 40 imágenes" sin GPU es optimista | **Con D11 se mide en Colab T4 y se recalibra el umbral** (T10) |
 | R4 | `eps=0.04 m` en DBSCAN depende de densidad de la nube densa | Hacerlo parámetro configurable, no constante |
 | R5 | Redondeo a 3 decimales en el JSON puede ocultar errores > 1 mm | Redondear solo en el formateo, nunca en el cálculo |
 | R6 | Repo git remoto existe pero el local no está inicializado | `git init` + `remote add origin` antes de escribir código (T9) |
-| R7 | **Sin GPU NVIDIA**: la nube densa del SDD no es alcanzable localmente | Motivo principal de la evaluación de motores en §6 |
+| R7 | **Sin GPU NVIDIA**: la nube densa del SDD no es alcanzable localmente | **Resuelto 2026-10-06 (D11):** el runtime es Colab con GPU T4; la GPU integrada local deja de ser una limitación del producto |
 | R8 | Un modelo monocular no garantiza el error métrico del SDD | Medir con cotas reales de obra antes de prometer umbrales (T3) |
 | R9 | Si el motor es MoGe-2, el contrato de M3 del SDD queda obsoleto | Resolver T2 antes de escribir M3/M4, o se rehace el trabajo |
 | R10 | Datos de obra son confidenciales del cliente | Subir a terceros sólo con autorización explícita (T11). **D10 fija el mecanismo** (Drive privado del usuario) pero sólo cubre su data: la del cliente sigue esperando autorización |
-| R11 | **Disco libre escaso: ~17.7 GB.** PyTorch CPU ~2 GB, pesos MoGe ~134 MB a 2.5 GB, COLMAP nocuda ~3.1 GB descomprimido | No instalar nada sin medir antes. Preferir el modelo `vits` (134 MB). No evaluar MoGe-3 aquí |
-| R12 | Latencia de MoGe-2 en CPU (~3-8 s/frame) rompe el criterio E2E de < 8 min por sí sola | Reducir nº de frames con ORB (submuestreo) o recortar el criterio (T10) |
+| R11 | **Disco libre escaso: ~17.7 GB.** PyTorch CPU ~2 GB, pesos MoGe ~134 MB a 2.5 GB, COLMAP nocuda ~3.1 GB descomprimido | **Resuelto 2026-10-06 (D11):** el runtime vive en el disco efímero de Colab (~100 GB). La restricción real pasa a la **cuota de Drive (15 GB, D10)** y a no instalar nada en la máquina local sin medir antes |
+| R12 | Latencia de MoGe-2 en CPU (~3-8 s/frame) rompe el criterio E2E de < 8 min por sí sola | **Resuelto 2026-10-06 (D11):** corre en GPU de Colab (decenas de ms/frame con FP16). El criterio E2E pasa a medirse en T4 (T10) |
 | R13 | **Baja textura del caño** produce nubes ralas: *"low texture of the pipes usually results in a very sparse point cloud"* (literatura 2023). Es el riesgo inverso al de MoGe y afecta a COLMAP/MVS. **Agravado:** 3DGS le gana a la fotogrametría justo en "reflective, low-texture", o sea que la técnica que funciona en nuestra zona de dificultad es la que no es métrica | Medir en T3 la densidad real **sobre un caño**, no la densidad global de la escena (§6, §6 ter) |
 | R14 | El precedente publicado con 5.4 mm de error de radio **exige ≥ 95 % de solapamiento** entre frames, más de lo que da un video de celular normal | Dimensionar T4 con ese número como techo. Medir el solapamiento real de la captura antes de fijar el piso. **Ojo:** el knee está en 90 %, no en 95 %. Ver §6 bis |
 | R15 | El muestreo adaptativo (más frames donde la cámara se mueve) reduce el número de frames, pero **nunca se validó con un objeto tan chico como 25 mm de radio**: su experimento usó caños industriales de 100 mm o más | El modo de falla no es "más ruido" sino **caño chico sin geometría suficiente**, que es peor y no se ve como ruido. T3 debe medir densidad **sobre el caño**, no en la escena (§6 bis) |
@@ -894,7 +925,9 @@ AAAAMMDD-HHMMSS_<descripcion>.<ext>
   nunca "magic number" en el cuerpo de la función.
 * Proyecciones siempre en **metros**, `Z=0` en el piso. Las coordenadas de píxel se convierten
   a metros una sola vez, en M4.
-* El archivo DXF se crea con unidades métricas: `ezdxf` y `$INSUNITS = 6` (metros).
+* El plano se exporta en unidades métricas. **V1 (D12):** SVG escrito a mano (XML), con
+  `width`/`height` en mm y las cotas como texto vectorial. **V2:** DXF con `ezdxf` y
+  `$INSUNITS = 6` (metros).
 * Todo módulo debe ser testeable sin ejecutar COLMAP: la llamada a COLMAP va detrás de una
   interfaz inyectable (`ColmapBackend`), con un fake para tests.
 
@@ -924,11 +957,11 @@ medición* de *desvío de obra*. Pero deja un problema peor:
 
 **Una cota sin incertidumbre es indistinguible de un dato medido con cinta métrica.**
 
-El entregable son números en milímetros sobre un DXF que alguien va a usar para picar,
-ampliar o mantenimiento. Si el sistema escribe `x = 1247 mm` sin decir cuánto vale esa
-cifra, está presentando una estimación con la misma autoridad que una medición directa.
-No hay contra qué contrastar, así que **la incertidumbre es el único mecanismo de
-honestidad del documento**.
+El entregable son números en milímetros sobre un plano (SVG en V1, DXF en V2) que alguien
+va a usar para picar, ampliar o mantenimiento. Si el sistema escribe `x = 1247 mm` sin
+decir cuánto vale esa cifra, está presentando una estimación con la misma autoridad que
+una medición directa. No hay contra qué contrastar, así que **la incertidumbre es el único
+mecanismo de honestidad del documento**.
 
 De ahí tres requisitos concretos, que el SDD no pedía:
 
@@ -938,8 +971,8 @@ De ahí tres requisitos concretos, que el SDD no pedía:
 3. El reporte declara un **veredicto de calidad global** del relevamiento, para que el
    lector sepa si el documento completo sirve o si hay que repetir la captura.
 
-Regla de redacción: en el JSON y en el DXF, un número sin incertidumbre asociada es un
-error de formato, no un detalle de estilo.
+Regla de redacción: en el JSON y en el plano (SVG/DXF), un número sin incertidumbre
+asociada es un error de formato, no un detalle de estilo.
 
 ### 11.2 Criterios numéricos
 
@@ -960,7 +993,7 @@ distintas, y confundirlas produce uninhabitables:
 | :--- | :--- | :--- | :--- |
 | **A. Algoritmo** | **± 5 mm** | Error interno del cálculo: ajuste de escala, punto-plano, RANSAC | Tests unitarios (TC-MOD4, TC-MOD6) |
 | **B. Reconstrucción** | **± 10 mm** | Error de la geometría extraída: nube, ajuste cilíndrico, radios | Validación contra puntos de control en obra |
-| **C. Extremo a extremo** | **± 10 mm** o **< 1.5 %** | Lo que lee el instalador en el DXF | CA-E2E-01 con cinta métrica |
+| **C. Extremo a extremo** | **± 10 mm** o **< 1.5 %** | Lo que lee el instalador en el plano (SVG V1 / DXF V2) | CA-E2E-01 con cinta métrica |
 
 La diferencia importa: si la nube tiene error de 8 mm pero el algoritmo calcula sin error,
 el fallo es de reconstrucción, no de cálculo. Un pipeline con ± 5 mm en capa A y una nube
@@ -970,31 +1003,36 @@ de 30 mm va a fallar en la C sin que ningún test unitario lo detecte.
 aparece antes de tocar código. Medir contra puntos de control intermedios, no sólo contra
 la cinta en el final.
 
-Comandos esperados (a definir en `pyproject.toml`):
+Comandos esperados (a definir en `pyproject.toml`; corren **dentro del notebook de Colab**,
+D11 — el repo se clona en el runtime y `pip install -e .` al inicio):
 
 ```bash
 pytest -q                # suite completa
 ruff check . && ruff format --check .
-python -m modules.pipeline data/ingest/<video>.mp4   # ejecución E2E
+python -m modules.pipeline data/ingest/<video>.mp4   # ejecución E2E (data/ en Drive, D10)
 ```
 
 ---
 
 ## 12. Flujo GUI (wizard paso a paso) — requisito D4
 
-Una única ventana Tkinter con barra de progreso y panel de estado. Orden de pasos,
+Un **notebook de Colab** como wizard de 8 pasos (D11). Cada paso es una celda (o grupo de
+celdas) con `ipywidgets` para la interacción y `matplotlib` para la visualización; la
+secuencia se impone con guardias que leen `work/<source_id>/session.json`. Orden de pasos,
 cada uno desbloqueando el siguiente:
 
-1. **Selección de fuente** — elegir video/fotos desde `data/ingest/`.
+1. **Selección de fuente** — elegir video/fotos desde `data/ingest/` (en Drive, D10).
 2. **Ingesta** — progreso de extracción, cantidad de frames aceptados/rechazados, motivo de rechazo.
 3. **Calibración de escala** — mostrar un frame, el usuario dibuja el rectángulo del objeto
-   de referencia, ingresa ancho y alto en metros, previsualiza `px/m` en X e Y.
+   de referencia (`matplotlib.RectangleSelector` sobre el frame), ingresa ancho y alto en
+   metros, previsualiza `px/m` en X e Y.
 4. **Reconstrucción** — progreso de COLMAP por sub-etapa (features, matching, sparse, dense).
 5. **Alineación** — factor de escala aplicado, residuo del plano de piso.
 6. **Segmentación** — nº de planos, caños y artefactos detectados; lista con checkboxes.
 7. **Análisis espacial** — tabla de cotas, cada una con su incertidumbre. Las que superan
    la tolerancia de 10 mm se muestran marcadas como no confiables.
-8. **Exportación** — rutas de salida y botón para abrir carpeta.
+8. **Exportación** — genera `floor_plan_3d.svg` (V1, D12) y `metrics_report.json` en
+   `outputs/` de Drive; muestra dónde quedaron y botón para abrir la carpeta.
 
 Son 8 pasos. **No hay paso de comparación con el proyecto** (D9).
 
@@ -1002,6 +1040,10 @@ Reglas:
 * Ningún paso avanza con datos inválidos: validación con mensajes en español y el error concreto.
 * El estado de la sesión se persiste en `work/<source_id>/session.json` para poder retomar.
 * El pipeline debe ser **resumible** por paso.
+* Los trabajos pesados corren en la sesión del notebook; el progreso se reporta con widgets
+  (`IntProgress`) y log, nunca con variables compartidas.
+* Toda la lógica vive en `modules/` (testeable, §10); las celdas del notebook son solo
+  presentación y llaman a los módulos.
 
 ---
 
@@ -1009,10 +1051,9 @@ Reglas:
 
 ### 13.1 Bloqueantes (resolver antes de escribir código del módulo correspondiente)
 
-* [ ] **T1** Crear venv con Python 3.12 (D8) y fijar versiones exactas en `pyproject.toml`.
-      Requiere **instalar Python 3.12**: la máquina tiene 3.14.2 y 3.10.4, no 3.12.
-      Las versiones están verificadas en §5.1 — volver a comprobar antes de fijar.
-      **Alternativa sin instalar nada:** Colab ya trae 3.12.13 y PyTorch (§2.3, T23).
+* [ ] **T1** Fijar versiones exactas en `pyproject.toml` como requirements del notebook de
+      Colab (`pip install`). **Ya no hace falta instalar Python 3.12 en local**: con D11 el
+      runtime es Colab, que trae 3.12.13 (§2.3, §5.1 — volver a comprobar antes de fijar).
 * [ ] **T2** **Decidir el motor de reconstrucción** (ver §6): MoGe-2, COLMAP sparse + MoGe-2,
       o mantener COLMAP completo. Bloquea el diseño de M3 y M4.
       **Elemento nuevo de §6 ter:** considerar **optimización global de poses** en lugar de
@@ -1031,12 +1072,14 @@ Reglas:
 * [ ] **T5** Definir `distance_threshold` del RANSAC de piso para suelos irregulares.
 * [ ] **T6** Definir parametrización de DBSCAN y del ajuste cilíndrico (radio, RMSE)
       para diámetros reales de 1/2" a 3".
-* [ ] **T7** Definir representación de caños en DXF: eje + radio en cota, o poliedro aproximado.
+* [ ] **T7** Definir representación de caños en el plano: **V1 (SVG)** — eje + radio como
+      texto/cota vectorial, o poliedro; **V2 (DXF)** — eje + radio en cota, o poliedro.
 * [ ] **T8** Tabla de diámetros comerciales (¿ANSI, ISO, o ambos?) para `estimated_nominal_diameter`.
 * [x] **T9** Git inicializado con `.gitignore` y `.gitattributes`, rama `main`, remoto
       `mclichas/fotogrametria`. Completado 2026-10-05.
-* [ ] **T10** Recalibrar los umbrales de densidad y tiempo del SDD contra esta máquina,
-      o documentar explícitamente que quedan fuera de alcance sin GPU NVIDIA (§2.1).
+* [ ] **T10** Recalibrar los umbrales de densidad y tiempo del SDD contra **Colab (T4)**,
+      no contra la máquina local: con D11 el producto corre ahí. Declarar el hardware y la
+      versión del runtime en cada medida (GPU/CPU, versión de torch, sesión).
 * [ ] **T11** Definir la política de datos de obra: qué se sube a terceros, qué queda local.
       **Mecanismo ya decidido (D10):** carpeta privada de Google Drive con acceso RW desde
       Colab — vale para la data del usuario. **Lo que falta:** la autorización del
@@ -1057,17 +1100,14 @@ Reglas:
       Ver §6 bis: la decisión anterior de descartarlo se basó en un dato equivocado.
       Si se usa la librería, verificar que sea el cilindro de eje + radio que necesitamos
       y no una variante de cono o elipse.
-* [ ] **T23** Decidir el **entorno de ejecución del cómputo pesado** (§2.3): local en CPU,
-      o **laboratorio en Colab** con GPU T4 (Python 3.12.13 y PyTorch preinstalados, ~100 GB
-      de disco, sin instalar nada). Colab adelanta T3 sin tocar los 17.7 GB.
-      **Resuelto:** persistencia y almacenamiento del usuario por **D10** (carpeta privada
-      en Google Drive, RW desde Colab; `session.json` como estado retomable).
-      **Pendiente:** **T11** (data de clientes — D10 sólo cubre la del usuario) y **D6**
-      (Colab es infraestructura propietaria; el precedente de la VPS en §6 dice que lo que
-      importa es que el *software* sea libre, pero es al usuario a quien le toca confirmarlo).
-      Consecuencia si se adopta: **los tiempos medidos en T4 no representan al i7-10610U**,
-      así que T10 debe declarar el hardware de cada medida. El diseño ya lo permite: §10
-      exige el motor detrás de una interfaz inyectable.
+* [x] **T23** **Entorno de ejecución resuelto 2026-10-06 (D11).** El producto corre entero
+      en Colab: cómputo pesado (GPU T4) y GUI (notebook ipywidgets). Persistencia y datos por
+      **D10** (Drive + `session.json` retomable), en cuenta dedicada del proyecto, con carga
+      manual y sin Drive for Desktop. La máquina local queda como navegador.
+      **Queda abierto:** **T11** (data de clientes reales — D10 solo cubre la del usuario)
+      y la confirmación explícita del **cliente** antes de subir su footage. D6 se consideró
+      aceptado con la elección del usuario (precedente VPS, §6: el software es libre, la
+      infraestructura se alquila; la diferencia es que Google inspecciona lo que sube — T11).
 
 ### 13.2 Mejoras de V2
 
@@ -1088,15 +1128,19 @@ Reglas:
 
 ### 13.4 Decisiones ya resueltas (no reabrir sin motivo)
 
-* [x] D1–D9 (§4). Licencia libre, ORB, escala manual con ancho/alto, GUI wizard,
-      nombres con fecha y hora, V1 de un solo video, tolerancia 10 mm, Python 3.12,
-      documentación as-built sin comparación con planos del proyecto.
+* [x] D1–D12 (§4). Licencia libre, ORB, escala manual con ancho/alto, GUI wizard en
+      notebook de Colab, nombres con fecha y hora, V1 de un solo video, tolerancia 10 mm,
+      Python 3.12 (Colab), documentación as-built sin comparación con planos del proyecto,
+      data/persistencia en Drive, producto entero en Colab, salida V1 en SVG.
 * [x] **T9** Git inicializado, rama `main`, remote en `mclichas/fotogrametria`. 2 commits pusheados.
+* [x] **T23** Entorno de ejecución resuelto: Colab (D11). Ver §13.1.
 
 ### 13.5 Antes de instalar cualquier cosa
 
-El disco es escaso (~17.7 GB, R11). **No instalar dependencias sin medir el espacio
-disponible primero** y sin que el usuario lo autorice. Presupuesto aproximado:
+**Con D11 (todo corre en Colab) esta sección aplica al notebook, no a la máquina local**:
+las dependencias se instalan con `pip` en el runtime de Colab (disco efímero ~100 GB), no
+en el disco local de 17.7 GB. Sigue aplicando la regla de no instalar sin medir y sin
+autorización del usuario. Presupuesto aproximado (para el notebook):
 
 | Paquete | Espacio | Veredicto |
 | :--- | --- | --- |

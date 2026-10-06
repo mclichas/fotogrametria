@@ -1,6 +1,6 @@
 ---
 name: planimetria-pipeline
-description: Convenciones, contratos de datos y criterios de aceptación del pipeline de planimetría 3D de cañerías por fotogrametría. Usar al crear o modificar cualquier archivo bajo modules/, al diseñar modelos Pydantic o dataclasses del pipeline, al integrar COLMAP u Open3D, o al tocar la GUI Tkinter del asistente paso a paso. También al revisar tolerancias, esquema JSON o capas DXF.
+description: Convenciones, contratos de datos y criterios de aceptación del pipeline de planimetría 3D de cañerías por fotogrametría. Usar al crear o modificar cualquier archivo bajo modules/, al diseñar modelos Pydantic o dataclasses del pipeline, al integrar COLMAP u Open3D, o al tocar el wizard en notebook de Colab (ipywidgets/matplotlib). También al revisar tolerancias, esquema JSON o capas DXF.
 license: MIT
 metadata:
   project: planimetria-canerias
@@ -55,7 +55,7 @@ Nunca escribir una función cuya firma asuma un único archivo. Recibir
 | M4 Métrica | `modules/scale_and_align.py` | nube + `CalibrationData` + poses | nube escalada, piso en `Z=0` |
 | M5 Segmentación | `modules/segmentation_engine.py` | nube métrica | `ExtractedEntities` |
 | M6 Cotas | `modules/spatial_analyzer.py` | `ExtractedEntities` | `SpatialMetricsReport` |
-| M7 Export | `modules/exporter.py` | entidades + reporte | `.dxf` + `.json` |
+| M7 Export | `modules/exporter.py` | entidades + reporte | `floor_plan_3d.svg` (V1, D12) + `.json`; `.dxf` en V2 |
 
 ## Puntos donde se rompe el código en la práctica
 
@@ -129,21 +129,29 @@ lo único que distingue una estimación de un dato medido. Formato `Measurement`
 en `contracts.md`; el método de estimación está pendiente en T17. Una cota sin
 `uncertainty_meters` es un error de revisión.
 
-### M7: DXF es metres, con capas fijas
+### M7: salida vectorial en V1 (SVG), DXF en V2
 
-`$INSUNITS = 6` (metros). Capas con color ACI fijo:
+**V1 (D12):** SVG escrito a mano (XML, sin dependencia), con `width`/`height` en mm y las
+cotas como texto vectorial; cada capa en un `<g>`. **V2:** DXF con `ezdxf.new("R2018")` y
+`$INSUNITS = 6` (metros). Capas con color fijo (SVG `stroke`/ACIs en DXF):
 `PAREDES` 7, `PISO_TECHO` 8, `CANERIAS` 1, `ARTEFACTOS` 5, `ACOTACIONES` 3.
-No inventar capas nuevas sin pedirlas.
+No inventar capas nuevas sin pedirlas. Detalle en `contracts.md` M7.
 
-## GUI
+## GUI (wizard en notebook de Colab — D11)
 
-Una sola ventana Tkinter con wizard de 8 pasos (§12 de AGENTS.md). Reglas:
+El wizard es un **notebook de Colab** con `ipywidgets` + `matplotlib`, no una ventana
+Tkinter (§12 de AGENTS.md). 8 pasos; la secuencia se impone con **guardias por celda** que
+leen `work/<source_id>/session.json`. Reglas:
 
-* Cada paso sólo habilita el siguiente cuando el actual es válido.
-* Los trabajos pesados corren en hilo; la GUI se actualiza vía `after()`.
-  Nunca llamar a COLMAP ni a Open3D en el hilo principal.
-* El progreso se reporta por una cola de mensajes, no por variables compartidas.
-* El estado se persiste en `work/<source_id>/session.json`; el pipeline es resumible.
+* Cada paso sólo habilita el siguiente cuando el actual es válido (la celda se niega a
+  ejecutar y muestra el error concreto en español).
+* Los trabajos pesados corren en la sesión del notebook; el progreso se reporta con widgets
+  (`IntProgress`) y log, nunca con variables compartidas.
+* El paso 3 (calibración) usa `matplotlib.RectangleSelector` sobre el frame para que el
+  usuario marque el objeto de referencia y luego ingrese ancho y alto.
+* El estado se persiste en `work/<source_id>/session.json`; el pipeline es resumible por
+  paso — sobrevive al idle timeout y a sesiones de Colab que se reinician.
+* Toda la lógica vive en `modules/` (testeable, §10); las celdas son solo presentación.
 
 ## Antes de dar por terminado un módulo
 

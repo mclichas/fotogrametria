@@ -229,7 +229,7 @@ experiencia propia de los autores. En su máquina, no en la nuestra, y sin decir
 flags ni con GPU.
 
 El paper de ajuste de elipse reporta sus corridas en **AMD Ryzen 5-2600X, 64 GB RAM,
-SSD NVMe 1 TB**: escritorio de escritorio, no el portátil de 4 núcleos que tenemos nosotros.
+SSD NVMe 1 TB**: escritorio, no el portátil de 4 núcleos que tenemos nosotros.
 
 ### Captura
 

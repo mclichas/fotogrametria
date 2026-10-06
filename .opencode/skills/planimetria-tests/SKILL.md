@@ -29,7 +29,7 @@ Cada TC del SDD tiene su test con el **mismo ID** en el nombre.
 | M1 | TC-MOD1-03 | `InsufficientOverlapError` con el segundo exacto | salto de cámara con contenido distinto |
 | M2 | TC-MOD2-01 | Detección ArUco sin intervención (reservado, no V1) | marcador generado con `cv2.aruco` |
 | M2 | TC-MOD2-02 | `CalibrationData` con 200 px / 0.50 m = 400 px/m | imagen sintética con rectángulo conocido |
-| M2 | TC-MOD2-03 | `InvalidDimensionValueError` con "treinta cm" y −0.5 | GUI headless: probar el validador, no el widget |
+| M2 | TC-MOD2-03 | `InvalidDimensionValueError` con "treinta cm" y −0.5 | wizard en notebook: probar el validador puro, no el widget de ipywidgets |
 | M3 | TC-MOD3-01 | ≥ 90 % de imágenes registradas + nube densa no vacía | `FakeColmapBackend` con `images.bin` de 30 entradas |
 | M3 | TC-MOD3-02 | `ReconstructionFailureError` en textura homogénea | fake que devuelve 0 features |
 | M4 | TC-MOD4-01 | 2.0 unidades → 1.0 m con ±0.001 m | nube de 2 puntos a distancia 2.0 |
@@ -39,7 +39,7 @@ Cada TC del SDD tiene su test con el **mismo ID** en el nombre.
 | M5 | TC-MOD5-03 | 5 % de outliers no alteran la detección | añadir ruido uniforme al fixture de TC-MOD5-02 |
 | M6 | TC-MOD6-01 | 0.500 / 0.480 / 0.00 % para caño horizontal | `ExtractedEntities` a mano, sin punto de entrada real |
 | M6 | TC-MOD6-02 | 0.09 / 0.14 / 5.00 % para caño inclinado | ídem |
-| M7 | TC-MOD7-01 | DXF abrible sin errores en ezdxf + LibreCAD | entidades de prueba |
+| M7 | TC-MOD7-01 | SVG de V1: XML bien formado, dimensiones en mm, capas correctas | entidades de prueba |
 | M7 | TC-MOD7-02 | JSON valida contra el modelo Pydantic | `metrics_report` completo |
 
 E2E: CA-E2E-01 a CA-E2E-05. CA-E2E-01 a CA-E2E-03 requieren datos reales de obra
@@ -115,7 +115,7 @@ la suite por defecto y `pytest -m e2e` la de validación en obra.
 
 - [ ] Todos sus TC existen con el ID del SDD en el nombre del test.
 - [ ] El test falla si se rompe el código (verificado cambiando el valor esperado).
-- [ ] Los tests de GUI validan la lógica, no el widget (extraer validadores puros).
+- [ ] Los tests del wizard validan la lógica, no el widget (extraer validadores puros).
 - [ ] Sin `time.sleep`; usar mocks para lo asíncrono.
 - [ ] Sin dependencia de rutas absolutas, del reloj del sistema ni del orden de ejecución.
 - [ ] Los fixtures compartidos están en `tests/fixtures.py`.
