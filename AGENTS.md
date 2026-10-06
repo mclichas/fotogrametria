@@ -151,6 +151,15 @@ Cómo se concreta:
   usar Drive for Desktop: los archivos se suben a mano a la carpeta de la cuenta dedicada.
   Consecuencia práctica: en la máquina local no hay carpeta local espejada; todo lo que el
   pipeline necesita está en Drive.
+* **Carpeta de trabajo (proyecto):**
+  `https://drive.google.com/drive/folders/1qjRS51U58tSuFdj4lJkcagLI0HpMRp8s` — compartida
+  por el usuario 2026-10-06, accesible por link. **Está vacía al inicio** (esperado: la
+  ingesta es manual y el pipeline aún no escribió nada). Dentro se organizan
+  `data/ingest/`, `work/` y `outputs/`; las subcarpetas se crean en la primera corrida del
+  notebook (o a mano). **Privacidad:** el acceso "sin login" es aceptable hoy porque no hay
+  contenido; si entra data real de obra o de clientes (T11), el link público debe
+  restringirse a la cuenta dedicada — Colab monta Drive con credenciales y no necesita el
+  link compartido.
 * El estado del pipeline ya tenía dónde vivir: `work/<source_id>/session.json` (§12) y el
   requisito de ser **resumible por paso**. Cada paso escribe su entregable en Drive —
   frames aceptados, `CalibrationData`, nube, segmentación, cotas, `.svg`/`.json` (V1, D12) —
