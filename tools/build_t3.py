@@ -396,10 +396,13 @@ else:
     _r_real = ancho_w.value / alto_w.value
     _r_pred = ancho_plano / alto_plano
     print(f"aspecto real {_r_real:.3f} vs predicho {_r_pred:.3f}  (si difieren mucho, la zona no es un rectangulo frontoparalelo)")
-    _pxmm = max(_fx_px, _fy_px) / _z0
+    _pxmm = max(_fx_px, _fy_px) / (_z0 * 1000)   # px por mm a la profundidad z0
     _w_exp = ancho_w.value * 1000 * _pxmm
     _h_exp = alto_w.value * 1000 * _pxmm
     print(f"a z0={_z0*1000:.0f} mm: el objeto real deberia proyectar {_w_exp:.0f} x {_h_exp:.0f} px pero marcaste {x2-x1} x {y2-y1} px")
+    _z_impl_w = max(_fx_px, _fy_px) * ancho_w.value / (x2 - x1)
+    _z_impl_h = max(_fx_px, _fy_px) * alto_w.value / (y2 - y1)
+    print(f"z implicada por la marca: ancho->{_z_impl_w*1000:.0f} mm, alto->{_z_impl_h*1000:.0f} mm | MoGe: {_z0*1000:.0f} mm  (si difieren, escala o marca no coherentes)")
 """
     )
 )
