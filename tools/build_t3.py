@@ -64,7 +64,39 @@ GPU corre — una imagen con `vits` tarda ~3-8 s en CPU y decenas de ms en GPU c
     )
 )
 
-# ---------------------------------------------------------------- celda 1
+# ---------------------------------------------------------------- celda 1 (chequeo de recursos)
+cells.append(
+    code(
+        """# @title 0. Chequeo de recursos de esta sesión (CORRER PRIMERO, antes de instalar)
+# Colab solo deja leer sus propios recursos desde dentro de la sesión, por eso este
+# chequeo. Umbrales para esta prueba: disco libre >= 5 GB (usa < 2 GB) y RAM libre
+# >= 2 GB (usa < 2 GB). Si algo queda corto: Runtime -> Restablecer entorno (factory
+# reset) y reabrir el notebook desde GitHub.
+import shutil, time, datetime
+import psutil, torch
+
+_disk = shutil.disk_usage("/content")
+_mem = psutil.virtual_memory()
+print("=== Sesión Colab ===")
+print("hora      :", datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S"))
+print("uptime VM :", time.strftime("%H:%M:%S", time.gmtime(time.time() - psutil.boot_time())))
+print()
+print("=== Disco (/content, efímero) ===")
+print(f"libres {_disk.free/1e9:.1f} GB | total {_disk.total/1e9:.0f} GB | usados {_disk.used/1e9:.1f} GB")
+print()
+print("=== RAM ===")
+print(f"libres {_mem.available/1e9:.1f} GB | total {_mem.total/1e9:.1f} GB | usados {_mem.used/1e9:.1f} GB")
+print()
+print("=== torch / GPU ===")
+print("torch:", torch.__version__, "| cuda:", torch.cuda.is_available())
+if torch.cuda.is_available():
+    _p = torch.cuda.get_device_properties(0)
+    print("GPU  :", torch.cuda.get_device_name(0), f"| VRAM {_p.total_memory/1e9:.1f} GB")
+"""
+    )
+)
+
+# ---------------------------------------------------------------- celda 2
 cells.append(
     code(
         """# @title 1. Instalar MoGe-2 al commit fijado (una vez por sesión)

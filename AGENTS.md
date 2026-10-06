@@ -61,7 +61,14 @@ Drive por carga manual (D10), sin Drive for Desktop.
 ### 2.2 Repositorio
 
 * Remoto: https://github.com/mclichas/fotogrametria (owner `mclichas`)
-* **Público** (verificado 2026-10-06: `git ls-remote` anónimo funciona). Consecuencia:
+* **Público** (hecho público 2026-10-06 por decisión del usuario; re-verificado con la API y
+  `raw.githubusercontent.com` **anonimos**). **Corrección de registro:** la "verificación"
+  original de 2026-10-06 (`git ls-remote` local) fue **inválida** — las credenciales de git
+  cacheadas enmascaran un repo privado, y el repo era privado (creado privado por defecto de
+  GitHub). Colab no puede abrir notebooks de repos privados por el link directo (404
+  "No se encontró el bloc de notas"); por eso se hizo público. **Regla para el futuro:**
+  verificar la visibilidad SIEMPRE anónimo (API de GitHub o `raw.githubusercontent.com`),
+  nunca con git local. Consecuencia del repo público:
   **nada de obra ni de clientes se versiona** (T11). El "resguardo" en GitHub cubre solo
   código + notebook + READMEs de estructura (§2.3, skill `colab`).
 * Local: inicializado, rama `main`, en sincronía con `origin` (T9, 2026-10-05).
