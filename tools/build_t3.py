@@ -145,8 +145,19 @@ if _has_cuda:
 cells.append(
     code(
         """# @title 3. Montar Drive y elegir la foto de prueba (D10)
+# Si el popup de autorización no aparece o tarda, Colab aborta con
+# 'credential propagation was unsuccessful'. En ese caso: re-ejecutá esta celda
+# y completá el popup con la cuenta DEDICADA del proyecto sin demorarte; también
+# permití popups de colab.research.google.com en el navegador.
+import os
 from google.colab import drive
-drive.mount("/content/drive")
+
+_MNT = "/content/drive"
+if not os.path.isdir(f"{_MNT}/MyDrive"):
+    print(f"Montando Drive en {_MNT}... completá el popup con la cuenta dedicada.")
+    drive.mount(_MNT)
+else:
+    print(f"Drive ya montado en {_MNT} (no se vuelve a pedir autorización).")
 
 from ipywidgets import widgets
 from IPython.display import display
