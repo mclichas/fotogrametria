@@ -57,6 +57,29 @@ Nunca escribir una función cuya firma asuma un único archivo. Recibir
 | M6 Cotas | `modules/spatial_analyzer.py` | `ExtractedEntities` | `SpatialMetricsReport` |
 | M7 Export | `modules/exporter.py` | entidades + reporte | `floor_plan_3d.svg` (V1, D12) + `.json`; `.dxf` en V2 |
 
+## Paso a paso del wizard (D11) — qué toca cada paso
+
+Los 8 pasos del notebook (`wizard_planimetria.ipynb`, §12 de AGENTS.md). Cada paso
+tiene su guardia en `session.json` (solo lo habilita el anterior), mueve un módulo
+y produce un entregable. Si un paso está bloqueado por un TODO, no escribirlo hasta
+resolverlo — se detecta en revisión.
+
+| Paso | Función | Módulo que lo sirve | Entregable | Tests | Bloqueado por |
+| :--- | :--- | :--- | :--- | :--- | :--- |
+| 1 Selección | listar `data/ingest/`, elegir fuente | `session.py`, `video_processor` | `source_id` | `test_session` | — |
+| 2 Ingesta | extraer frames, filtrar borrosos/duplicados | M1 `video_processor.py` | frames + `frame_metadata.json` | TC-MOD1 | T4 (umbrales) |
+| 3 Calibración | marcar rectángulo (ancho+alto reales) | M2 `scale_calibrator.py` | `CalibrationData` | TC-MOD2 | D3 |
+| 4 Reconstrucción | poses + geometría | M3 `reconstruction_engine.py` | `dense_cloud.ply` + `cameras.json` (COLMAP) **o** point maps por frame (MoGe, T2) | TC-MOD3 | T2, T3 |
+| 5 Alineación | escala métrica + piso `Z=0` | M4 `scale_and_align.py` | nube métrica | TC-MOD4 | T2 (motor), T5 |
+| 6 Segmentación | planos, caños, artefactos | M5 `segmentation_engine.py` | `ExtractedEntities` | TC-MOD5 | T6, T22 |
+| 7 Análisis | cotas con incertidumbre | M6 `spatial_analyzer.py` | `SpatialMetricsReport` | TC-MOD6 | T17, T19 |
+| 8 Exportación | SVG + JSON | M7 `exporter.py` | `floor_plan_3d.svg` + `metrics_report.json` | TC-MOD7 | D12, T7, T8, T21 |
+
+Regla de revisión por paso: el step del notebook **nunca** hace la lógica — llama al
+módulo, persiste con `modules/session.py` y muestra su entregable (progreso con
+`IntProgress`). Si una celda del wizard repite código de un módulo, es una violación
+de §12.
+
 ## Puntos donde se rompe el código en la práctica
 
 ### COLMAP no es una llamada de Python

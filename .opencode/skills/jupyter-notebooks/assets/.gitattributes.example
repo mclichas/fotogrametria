@@ -1,0 +1,6 @@
+# Content-aware notebook diffs and merges via nbdime
+*.ipynb diff=jupyternotebook
+*.ipynb merge=jupyternotebook
+
+# Optional: if you also install nbstripout as a git filter
+# *.ipynb filter=nbstripout

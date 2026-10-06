@@ -29,6 +29,21 @@ metadata:
 * Todas las celdas hablan en español; la lógica vive en `modules/` (testeable);
   las celdas solo presentan (AGENTS.md §12).
 
+## Modelo de persistencia — qué vive dónde
+
+| Componente | Dónde vive | ¿Persiste entre sesiones? |
+| :--- | :--- | :--- |
+| Notebook y código (`wizard_planimetria.ipynb`, `modules/`, `tests/`) | GitHub | **Sí** — versionado; la corrida lo re-clona |
+| Entorno de ejecución (VM, GPU, `/content`, librerías instaladas) | Colab | **No** — efímero; se regenera en cada corrida |
+| Datos y estado (`data/ingest`, `work/`, `outputs/`, `session.json`) | Google Drive (D10) | **Sí** — persistencia real del pipeline |
+
+Consecuencia: cerrar la sesión de Colab **no pierde trabajo** — pierde el entorno.
+La corrida retoma desde `work/<source_id>/session.json` (paso por paso). Si alguien
+"no entiende cómo se corre desde GitHub con infra de Colab", esta tabla es la
+respuesta: GitHub aporta el documento (el `colab.research.google.com/github/.../...ipynb`
+lo abre y levanta runtime nuevo), Colab ejecuta (efímero), Drive guarda datos y
+progreso. Los cambios al notebook vuelven a GitHub al final (ver «Git desde Colab»).
+
 ## Cómo se usa el wizard
 
 1. Abrir el notebook desde GitHub (link de arriba) con la **cuenta dedicada**.
