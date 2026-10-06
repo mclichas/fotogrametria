@@ -289,19 +289,21 @@ print("Criterio escala: |error| < 1 % (§11.2).")
 # ---------------------------------------------------------------- celda 9
 cells.append(
     code(
-        """# @title 9. Medir el caño (diámetro conocido, calibre/cinta)
+        """# @title 9. Medir el caño (diámetro real en mm)
 # Arrastrá una caja APRETADA alrededor del caño, en un tramo limpio (sin codos ni
 # fittings), con el caño cruzando la imagen y el eje ~perpendicular a la cámara.
-# Completá el diámetro EXTERIOR REAL medido con calibre en mm. Ojo: «1/2 pulgada» es
-# nominal, no el diámetro: CPVC/PEX/cobre 1/2" (CTS) ≈ 15.9 mm; PVC 1/2" (IPS) ≈ 21.3 mm.
-# El valor que cargás acá define el veredicto: medí el caño verde con calibre.
+# CARGÁ EL DIÁMETRO EXTERIOR REAL del caño. Decisión 2026-10-06: asumido 25 mm para
+# esta prueba — si lo medís con calibre y da otro valor, gana el calibre. Ojo: el
+# veredicto se lee contra el número que cargás; un «1/2 pulgada» comercial mide
+# ~15.9 mm (CTS: CPVC/PEX/cobre) o ~21.3 mm (IPS: PVC); en PPR verde, Ø25 es el
+# «3/4 pulgada» comercial. El interior del caño no interviene en la prueba.
 from matplotlib.widgets import RectangleSelector
 from ipywidgets import widgets
 from IPython.display import display
 
 cx1_w = widgets.IntText(value=0, description="x1"); cy1_w = widgets.IntText(value=0, description="y1")
 cx2_w = widgets.IntText(value=W - 1, description="x2"); cy2_w = widgets.IntText(value=H - 1, description="y2")
-diam_w = widgets.FloatText(value=21.3, description="diámetro real (mm)")
+diam_w = widgets.FloatText(value=25.0, description="diámetro real (mm)")
 
 _fig2, _ax2 = plt.subplots(figsize=(10, 8))
 _ax2.imshow(img_rgb)
