@@ -153,13 +153,20 @@ Cómo se concreta:
   pipeline necesita está en Drive.
 * **Carpeta de trabajo (proyecto):**
   `https://drive.google.com/drive/folders/1qjRS51U58tSuFdj4lJkcagLI0HpMRp8s` — compartida
-  por el usuario 2026-10-06, accesible por link. **Está vacía al inicio** (esperado: la
-  ingesta es manual y el pipeline aún no escribió nada). Dentro se organizan
-  `data/ingest/`, `work/` y `outputs/`; las subcarpetas se crean en la primera corrida del
-  notebook (o a mano). **Privacidad:** el acceso "sin login" es aceptable hoy porque no hay
-  contenido; si entra data real de obra o de clientes (T11), el link público debe
-  restringirse a la cuenta dedicada — Colab monta Drive con credenciales y no necesita el
-  link compartido.
+  por el usuario 2026-10-06, accesible por link. **Estaba vacía al inicio** (esperado: la
+  ingesta es manual y el pipeline aún no escribió nada). Estructura creada y verificada
+  2026-10-06: `data/ingest/` (id `1RrLBRxMCChWgax_HfJZ_IMTtmpYsUzgy`), `work/`
+  (id `1Rs8HJ6M_Y1i50ir7jad`), `outputs/` (id `15R46WOHqcZ-qPbAE7_0`). El notebook
+  (`wizard_planimetria.ipynb`) crea estas subcarpetas en su celda de configuración con
+  `exist_ok=True` si faltan, sin pisar lo existente. **Privacidad:** el acceso "sin login"
+  es aceptable hoy porque no hay contenido; si entra data real de obra o de clientes (T11),
+  el link público debe restringirse a la cuenta dedicada — Colab monta Drive con
+  credenciales y no necesita el link compartido.
+* **Regla de uso de la cuenta dedicada:** el acceso a la cuenta de Google se usa
+  **únicamente** para este proyecto y **únicamente** para trabajar dentro de la carpeta
+  compartida. Cualquier operación fuera de ese alcance (otra carpeta, otra cuenta, otro
+  recurso de Google) requiere **autorización explícita** antes de ejecutarse. Confirmado
+  por el usuario 2026-10-06.
 * El estado del pipeline ya tenía dónde vivir: `work/<source_id>/session.json` (§12) y el
   requisito de ser **resumible por paso**. Cada paso escribe su entregable en Drive —
   frames aceptados, `CalibrationData`, nube, segmentación, cotas, `.svg`/`.json` (V1, D12) —
@@ -865,7 +872,8 @@ Repositorio (GitHub — código):
 ├── .opencode/skills/             # skills de proyecto (pipeline, tests)
 ├── pyproject.toml                # deps, ruff, pytest
 ├── prompt para desarrollo ...md  # SDD de origen (no editar)
-├── modules/                      # código de los 7 módulos
+├── wizard_planimetria.ipynb      # wizard de 8 pasos en Colab (D11) — GUI del producto
+├── modules/                      # código del pipeline (M1..M7, session, errors)
 ├── tests/                        # pytest, TC-MOD1..TC-MOD7
 └── docs/
     └── referencias/              # fichas de papers y repos. CONTEXTO, no requisito
@@ -1025,17 +1033,21 @@ python -m modules.pipeline data/ingest/<video>.mp4   # ejecución E2E (data/ en 
 
 ## 12. Flujo GUI (wizard paso a paso) — requisito D4
 
-Un **notebook de Colab** como wizard de 8 pasos (D11). Cada paso es una celda (o grupo de
-celdas) con `ipywidgets` para la interacción y `matplotlib` para la visualización; la
-secuencia se impone con guardias que leen `work/<source_id>/session.json`. Orden de pasos,
-cada uno desbloqueando el siguiente:
+El producto GUI es el notebook **`wizard_planimetria.ipynb`** (raíz del repo): un wizard de
+8 pasos en Colab (D11). Cada paso es una celda (o grupo de celdas) con `ipywidgets` para la
+interacción y `matplotlib` para la visualización; la secuencia se impone con guardias que
+leen `work/<source_id>/session.json`. La persistencia y las guardias de orden viven en
+`modules/session.py` (testeable, `tests/test_session.py`); las celdas solo presentan. La
+celda de configuración monta Drive y crea `data/ingest/`, `work/` y `outputs/` con
+`exist_ok=True` (D10). Orden de pasos, cada uno desbloqueando el siguiente:
 
 1. **Selección de fuente** — elegir video/fotos desde `data/ingest/` (en Drive, D10).
 2. **Ingesta** — progreso de extracción, cantidad de frames aceptados/rechazados, motivo de rechazo.
 3. **Calibración de escala** — mostrar un frame, el usuario dibuja el rectángulo del objeto
    de referencia (`matplotlib.RectangleSelector` sobre el frame), ingresa ancho y alto en
    metros, previsualiza `px/m` en X e Y.
-4. **Reconstrucción** — progreso de COLMAP por sub-etapa (features, matching, sparse, dense).
+4. **Reconstrucción** — progreso por sub-etapa (features, matching, sparse, dense si es
+   COLMAP; una pasada por frame si es MoGe-2 — motor por definir, T2).
 5. **Alineación** — factor de escala aplicado, residuo del plano de piso.
 6. **Segmentación** — nº de planos, caños y artefactos detectados; lista con checkboxes.
 7. **Análisis espacial** — tabla de cotas, cada una con su incertidumbre. Las que superan

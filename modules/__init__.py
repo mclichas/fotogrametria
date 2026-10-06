@@ -1,0 +1,1 @@
+"""Paquete del pipeline de planimetría 3D de cañerías (AGENTS.md §7)."""
