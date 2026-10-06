@@ -118,6 +118,44 @@ diseño ya lo anticipa: §10 exige el motor detrás de una interfaz inyectable
 remoto-GPU. Y M1 extrae frames localmente: a la nube viajan decenas de MB de JPEGs, no el
 video de obra.
 
+#### D10: Google Drive como carpeta de datos y como persistencia (2026-10-06)
+
+Propuesta del usuario, que resuelve de un solo movimiento los dos puntos débiles de arriba
+(datos de cliente y efimeridad de la sesión): **una carpeta privada suya en Google Drive,
+con lectura y escritura desde Colab, donde viven `data/ingest`, los datos de obra y los
+entregables de cada paso** — de modo que una sesión nueva retoma desde donde quedó la
+anterior. Queda registrado como **D10**.
+
+Cómo se concreta:
+
+* En Colab: `from google.colab import drive; drive.mount('/content/drive')`. Monta la
+  carpeta con las credenciales de la cuenta del usuario, en RW. Eso es "darle acceso":
+  no hay nada más que configurar.
+* En local: **Drive for Desktop** apuntando a la misma carpeta. **Modo espejo (mirror), no
+  streaming** — en streaming los archivos no están realmente en disco y OpenCV
+  descargaría cada video bajo demanda al leerlo (o fallaría sin red).
+* El estado del pipeline ya tenía dónde vivir: `work/<source_id>/session.json` (§12) y el
+  requisito de ser **resumible por paso**. Cada paso escribe su entregable en Drive —
+  frames aceptados, `CalibrationData`, nube, segmentación, cotas, `.dxf`/`.json` — y una
+  sesión nueva monta Drive, lee `session.json` y arranca del paso pendiente. Drive sólo
+  cambia *dónde* vive el estado, no el diseño del wizard.
+
+**Límites prácticos (datos verificados 2026-10-06):**
+
+| Tema | Dato |
+| :--- | :--- |
+| Cuota gratuita | **15 GB** compartidos entre Drive, Gmail y Fotos. **Ojo:** cuentas de Google creadas desde el 2026-03-09 arrancan con **5 GB** (+10 GB verificando un teléfono). Conviene checar la cuota real antes de planificar |
+| Montaje FUSE en Colab | Sobre red: **lento con miles de archivos chicos**. Patrón: copiar el lote de frames a `/content` (disco local del VM, ~100 GB), procesar ahí, y devolver sólo resultados |
+| Video crudo | ~100-200 MB por minuto de 1080p (H.264 ~17 Mbps). Es el ítem grande de la cuota |
+
+Regla de higiene, misma lógica que §8: en Drive se mantienen **originales + entregables +
+`session.json`**; los intermedios pesados (nubes, matches, máscaras) se limpian al exportar.
+La cuota se llena con intermedios abandonados, no con entregables.
+
+**Lo que D10 no resuelve:** la autorización del **cliente** sobre sus propios videos. D10
+autoriza la data del usuario y fija el mecanismo; cuando entre footage de un cliente real,
+falta el sí del cliente (T11). Para T3, con foto que no es de un cliente, no aplica.
+
 ---
 
 ## 3. Alcance de la V1
@@ -155,6 +193,7 @@ Campos que deben existir ya en los modelos aunque la V1 no los use:
 | D7 | **Tolerancia máxima de error: 10 mm.** Es un techo, no un objetivo | Por encima de 10 mm el plano no sirve para el propósito. Ver §11.1 |
 | D8 | **Python 3.12** para el venv | `open3d` llega a cp314 pero `ezdxf` se detiene en cp313 — §5.1 |
 | D9 | **El producto documenta una instalación ya realizada, no guía una instalación.** Sin comparación contra los planos del proyecto: no se ingestan planos de referencia ni se emite juicio de cumplimiento | Confirmado por el usuario 2026-10-05. Ver §1 y §11.1 bis |
+| D10 | **`data/ingest` y los datos de obra viven en una carpeta privada de Google Drive**, con acceso de lectura y escritura desde Colab. La persistencia del pipeline (entregables de cada paso + `session.json`) por la misma vía | Propuesta del usuario 2026-10-06. Resuelve la efimeridad de Colab y el almacenamiento del usuario. **Condicionada:** la data de clientes reales queda pendiente de T11. Ver §2.3 |
 
 ### 4.1 Consecuencia de D3 sobre el modelo `CalibrationData`
 
@@ -835,7 +874,7 @@ AAAAMMDD-HHMMSS_<descripcion>.<ext>
 | R7 | **Sin GPU NVIDIA**: la nube densa del SDD no es alcanzable localmente | Motivo principal de la evaluación de motores en §6 |
 | R8 | Un modelo monocular no garantiza el error métrico del SDD | Medir con cotas reales de obra antes de prometer umbrales (T3) |
 | R9 | Si el motor es MoGe-2, el contrato de M3 del SDD queda obsoleto | Resolver T2 antes de escribir M3/M4, o se rehace el trabajo |
-| R10 | Datos de obra son confidenciales del cliente | Subir a terceros sólo con autorización explícita (T11) |
+| R10 | Datos de obra son confidenciales del cliente | Subir a terceros sólo con autorización explícita (T11). **D10 fija el mecanismo** (Drive privado del usuario) pero sólo cubre su data: la del cliente sigue esperando autorización |
 | R11 | **Disco libre escaso: ~17.7 GB.** PyTorch CPU ~2 GB, pesos MoGe ~134 MB a 2.5 GB, COLMAP nocuda ~3.1 GB descomprimido | No instalar nada sin medir antes. Preferir el modelo `vits` (134 MB). No evaluar MoGe-3 aquí |
 | R12 | Latencia de MoGe-2 en CPU (~3-8 s/frame) rompe el criterio E2E de < 8 min por sí sola | Reducir nº de frames con ORB (submuestreo) o recortar el criterio (T10) |
 | R13 | **Baja textura del caño** produce nubes ralas: *"low texture of the pipes usually results in a very sparse point cloud"* (literatura 2023). Es el riesgo inverso al de MoGe y afecta a COLMAP/MVS. **Agravado:** 3DGS le gana a la fotogrametría justo en "reflective, low-texture", o sea que la técnica que funciona en nuestra zona de dificultad es la que no es métrica | Medir en T3 la densidad real **sobre un caño**, no la densidad global de la escena (§6, §6 ter) |
@@ -998,8 +1037,11 @@ Reglas:
       `mclichas/fotogrametria`. Completado 2026-10-05.
 * [ ] **T10** Recalibrar los umbrales de densidad y tiempo del SDD contra esta máquina,
       o documentar explícitamente que quedan fuera de alcance sin GPU NVIDIA (§2.1).
-* [ ] **T11** Definir la política de datos de obra: qué se sube a terceros, qué queda local
-      (relevante si en el futuro se evalúa OpenDroneMap en VPS, §6).
+* [ ] **T11** Definir la política de datos de obra: qué se sube a terceros, qué queda local.
+      **Mecanismo ya decidido (D10):** carpeta privada de Google Drive con acceso RW desde
+      Colab — vale para la data del usuario. **Lo que falta:** la autorización del
+      **cliente** sobre sus propios videos antes de subirlos. Para T3 no aplica si la foto
+      no es de un cliente. (También relevante si se evalúa OpenDroneMap en VPS, §6.)
 * [ ] **T17** **Definir cómo se estima y reporta la incertidumbre de cada cota** (§11.1 bis).
       **Bloqueante de M6/M7.** Sin referencia externa de comparación (D9), la incertidumbre
       es el único mecanismo de honestidad del documento. Sin ella se entrega una estimación
@@ -1017,10 +1059,12 @@ Reglas:
       y no una variante de cono o elipse.
 * [ ] **T23** Decidir el **entorno de ejecución del cómputo pesado** (§2.3): local en CPU,
       o **laboratorio en Colab** con GPU T4 (Python 3.12.13 y PyTorch preinstalados, ~100 GB
-      de disco, sin instalar nada). Colab adelanta T3 sin tocar los 17.7 GB, pero exige
-      resolver antes: **T11** (los datos de obra suben a Google — R10) y **D6** (Colab es
-      infraestructura propietaria; el precedente de la VPS en §6 dice que lo que importa es
-      que el *software* sea libre, pero es al usuario a quien le toca confirmarlo).
+      de disco, sin instalar nada). Colab adelanta T3 sin tocar los 17.7 GB.
+      **Resuelto:** persistencia y almacenamiento del usuario por **D10** (carpeta privada
+      en Google Drive, RW desde Colab; `session.json` como estado retomable).
+      **Pendiente:** **T11** (data de clientes — D10 sólo cubre la del usuario) y **D6**
+      (Colab es infraestructura propietaria; el precedente de la VPS en §6 dice que lo que
+      importa es que el *software* sea libre, pero es al usuario a quien le toca confirmarlo).
       Consecuencia si se adopta: **los tiempos medidos en T4 no representan al i7-10610U**,
       así que T10 debe declarar el hardware de cada medida. El diseño ya lo permite: §10
       exige el motor detrás de una interfaz inyectable.
