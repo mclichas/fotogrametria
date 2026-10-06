@@ -337,6 +337,48 @@ print("Criterio escala: |error| < 1 % (§11.2).")
     )
 )
 
+# ---------------------------------------------------------------- celda 8bis
+cells.append(
+    code(
+        """# @title 8bis. Medición corregida por el plano de la cara (tolera inclinación leve)
+# La celda 8 asume una cara FRONTAL: si la caja está en ángulo, la distancia 3D
+# entre las esquinas del bbox queda inflada (las esquinas caen a profundidades
+# distintas). Acá se ajusta un plano a los puntos del rectángulo marcado y se mide
+# el ancho/alto de la región a lo largo de los ejes de imagen corregidos por la
+# pendiente del plano (que codifica la inclinación). Con cara frontal da lo mismo
+# que la celda 8. NO corrige rotación en el plano de la imagen (caja "tumbada").
+_K = np.asarray(intrinsics) if intrinsics is not None else None
+_fx = float(_K[0, 0]) if _K is not None else W / (2 * np.tan(np.deg2rad(60) / 2))
+_fy = float(_K[1, 1]) if _K is not None else _fx
+
+_sub = pts[y1:y2, x1:x2].reshape(-1, 3)
+_fin = _sub[np.isfinite(_sub).all(axis=1)]
+assert len(_fin) > 10, "Pocos puntos finitos en la caja: corré la celda 6 de nuevo."
+_cen = _fin.mean(axis=0)
+_U, _S, _Vt = np.linalg.svd(_fin - _cen, full_matrices=False)
+_n = _Vt[-1]
+if _n[2] < 0:
+    _n = -_n
+print(f"normal del plano de la cara: ({_n[0]:.4f}, {_n[1]:.4f}, {_n[2]:.4f})")
+print(f"residuo del ajuste (sigma): {_S[-1] * 1000:.1f} mm  (chico ⇒ superficie plana)")
+
+_z0 = float(_cen[2])
+if abs(_n[2]) < 1e-4:
+    print("⚠ vista rasante: no se puede corregir por plano; usá el resultado de la celda 8.")
+else:
+    _px3d_x = (_z0 / _fx) * np.sqrt(1 + (_n[0] / _n[2]) ** 2)
+    _px3d_y = (_z0 / _fy) * np.sqrt(1 + (_n[1] / _n[2]) ** 2)
+    ancho_plano = _px3d_x * (x2 - x1)
+    alto_plano = _px3d_y * (y2 - y1)
+    err_wp = (ancho_plano - ancho_w.value) / ancho_w.value * 100
+    err_hp = (alto_plano - alto_w.value) / alto_w.value * 100
+    print(f"ancho (plano) = {ancho_plano * 1000:.1f} mm (real {ancho_w.value * 1000:.0f} mm) → {err_wp:+.2f} %")
+    print(f"alto  (plano) = {alto_plano * 1000:.1f} mm (real {alto_w.value * 1000:.0f} mm) → {err_hp:+.2f} %")
+    print("Criterio escala: |error| < 1 % (§11.2). Comparar con la celda 8: si acá baja y allá no, el desvío era la inclinación.")
+"""
+    )
+)
+
 # ---------------------------------------------------------------- celda 9
 cells.append(
     code(
