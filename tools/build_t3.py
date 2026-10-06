@@ -213,16 +213,19 @@ cells.append(
 MODEL_ID = "Ruicheng/moge-2-vits-normal"
 # MODEL_ID = "Ruicheng/moge-2-vitb-normal"
 
-from moge.model import MoGeModel
+# API real del commit b942f00bd (MoGe 2.0.0): la clase se obtiene con el selector
+# de versión; `from_pretrained` NO acepta dtype/device (descarga `model.pt` del
+# repo HF) y los pesos salen fp32 en CPU — mover device/dtype después de cargar.
+from moge.model import import_model_class_by_version
+MoGeModel = import_model_class_by_version("v2")
 
 _device = "cuda" if _has_cuda else "cpu"
 _dtype = torch.float16 if _has_cuda else torch.float32
-try:
-    model = MoGeModel.from_pretrained(MODEL_ID, dtype=_dtype, device=_device)
-except TypeError:
-    model = MoGeModel.from_pretrained(MODEL_ID)
+model = MoGeModel.from_pretrained(MODEL_ID).to(_device).eval()
+if _dtype == torch.float16:
+    model.half()
 print(f"Modelo  : {MODEL_ID}")
-print(f"device  : {_device} | dtype: {_dtype}")
+print(f"device  : {_device} | dtype: {next(model.parameters()).dtype}")
 """
     )
 )
@@ -231,31 +234,22 @@ print(f"device  : {_device} | dtype: {_dtype}")
 cells.append(
     code(
         """# @title 6. Inferencia: point map métrico (una pasada por imagen)
+# `infer` devuelve dict: points, depth, mask, intrinsics, normal. En b942f00bd NO
+# existe `return_scale`: la escala métrica ya está aplicada dentro de `infer` (el
+# metric_scale del checkpoint). Pre-proceso oficial: dividir por 255 (idéntico a
+# moge/scripts/infer.py del commit). apply_mask=False: si no, las regiones con
+# máscara falsa quedan en torch.inf y rompen las distancias de las celdas 8 y 10.
 t0 = time.time()
-try:
-    out = model.infer(img_rgb, return_scale=True)
-except TypeError:
-    # fallback: tensor CHW float normalizado
-    _img_f = torch.from_numpy(img_rgb).permute(2, 0, 1).float().div_(255).unsqueeze(0)
-    out = model.infer(_img_f, return_scale=True)
+_img_t = torch.from_numpy(img_rgb).permute(2, 0, 1).float().div_(255).unsqueeze(0)
+out = model.infer(_img_t, apply_mask=False, use_fp16=bool(_has_cuda))
 te = time.time()
-print(f"claves del output: {list(out.keys())}")
+print(f"claves del output: {sorted(out.keys())}")
 print(f"tiempo inferencia: {te - t0:.2f} s")
 
 depth = np.asarray(out.get("depth")).squeeze()
-pts = out.get("points")
-normals = out.get("normals")
-intrinsics = out.get("intrinsics")
-fov = out.get("fov")
-
-if pts is None:
-    # Unproject desde depth + intrínsecas (fallback si el output no trae point map).
-    K = np.asarray(intrinsics).reshape(3, 3)
-    _uu, _vv = np.meshgrid(np.arange(depth.shape[1]), np.arange(depth.shape[0]))
-    pts = np.stack([(_uu - K[0, 2]) * depth / K[0, 0],
-                    (_vv - K[1, 2]) * depth / K[1, 1],
-                    depth], axis=-1)
-pts = np.asarray(pts).squeeze()
+pts = np.asarray(out.get("points")).squeeze()
+intrinsics = np.asarray(out.get("intrinsics")).squeeze()
+normals = np.asarray(out.get("normal")).squeeze()
 print(f"depth shape: {depth.shape} | point map shape: {pts.shape}")
 
 plt.figure(figsize=(12, 5))

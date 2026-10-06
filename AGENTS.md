@@ -381,6 +381,29 @@ Tres trampas al instalar:
    sólo-CUDA** (Triton, requiere NVIDIA). Hay que instalar MoGe-2 desde el commit
    `b942f00bd` (octubre 2025), que es el estado del repo antes del salto a la V3.
 
+**API verificada en `b942f00bd` (leída del fuente, 2026-10-06 — no asumir, ya pagamos
+el error en T3):** la clase **no** se exporta como `from moge.model import MoGeModel`;
+se obtiene con el selector de versión:
+
+```python
+from moge.model import import_model_class_by_version
+MoGeModel = import_model_class_by_version("v2")
+model = MoGeModel.from_pretrained(MODEL_ID).to(device).eval()  # NO acepta dtype/device
+if use_fp16:
+    model.half()
+out = model.infer(img_tensor, apply_mask=False, use_fp16=use_fp16)
+# out: dict con points (métrico, escala ya aplicada), depth, mask, intrinsics, normal
+```
+
+Detalles que importan: (1) `from_pretrained` **no** acepta `dtype=`/`device=`
+(descarga `model.pt` del repo HF y devuelve fp32 en CPU); (2) `infer` **no** tiene
+`return_scale` — el `metric_scale` del checkpoint ya se aplica adentro. Devolvía
+`return_scale=True` un `TypeError`; (3) pre-proceso oficial de la imagen: **dividir
+por 255** (idéntico a `moge/scripts/infer.py` del commit); (4) `infer` con
+`apply_mask=True` (default) pone `torch.inf` donde la máscara es falsa: para medir
+distancias sobre el point map hay que usar `apply_mask=False`; (5) `normal` es
+singular (`out["normal"]`), no `normals`.
+
 ### MoGe-3 — actualizar la evaluación anterior
 
 Corrección: MoGe-3 **ya publicó pesos**. Ya no es "coming soon".
