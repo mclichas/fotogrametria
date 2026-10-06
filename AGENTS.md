@@ -1090,8 +1090,14 @@ celda de configuración monta Drive y crea `data/ingest/`, `work/` y `outputs/` 
 1. **Selección de fuente** — elegir video/fotos desde `data/ingest/` (en Drive, D10).
 2. **Ingesta** — progreso de extracción, cantidad de frames aceptados/rechazados, motivo de rechazo.
 3. **Calibración de escala** — mostrar un frame, el usuario dibuja el rectángulo del objeto
-   de referencia (`matplotlib.RectangleSelector` sobre el frame), ingresa ancho y alto en
-   metros, previsualiza `px/m` en X e Y.
+   de referencia, ingresa ancho y alto en
+   metros, previsualiza `px/m` en X e Y. **Nota 2026-10-06 (verificado en T3):** en Colab el
+   backend `inline` NO despacha eventos de mouse (`matplotlib.RectangleSelector` no responde al
+   arrastre) y `%matplotlib ipympl` falla con `ValueError` aunque `ipympl` esté instalado (el
+   shim de backend de Colab no deja cambiar de toolkit en la sesión). El patrón que funciona:
+   **sliders de `ipywidgets` (`IntSlider`) + `widgets.Output` con vista previa del rectángulo**
+   (rojo, `mpatches.Rectangle`), redibujando con `observe` — como en las celdas 7 y 9 de
+   `experimentos/t3_moge2_validacion.ipynb`. El wizard debe usar ese patrón.
 4. **Reconstrucción** — progreso por sub-etapa (features, matching, sparse, dense si es
    COLMAP; una pasada por frame si es MoGe-2 — motor por definir, T2).
 5. **Alineación** — factor de escala aplicado, residuo del plano de piso.

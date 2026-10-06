@@ -264,35 +264,41 @@ plt.show()
 cells.append(
     code(
         """# @title 7. Marcar el objeto de referencia (ancho y alto conocidos — D3)
-# El backend por defecto de Colab (inline) NO despacha eventos de mouse: la imagen
-# se ve pero el selector no responde al arrastre. %matplotlib ipympl activa figuras
-# interactivas. Cómo marcar: CLICK en una esquina de la caja azul → ARRASTRAR hasta
-# la esquina opuesta → SOLTAR. Al soltar, x1..y2 se actualizan solos (ver el print).
-# Si ipympl no estuviera instalado (raro en Colab): !pip install -q ipympl.
-# Plan B: escribí las coordenadas a mano en los campos.
-%matplotlib ipympl
-from matplotlib.widgets import RectangleSelector
+# Colab con backend inline NO despacha eventos de mouse (el RectangleSelector no
+# responde) y %matplotlib ipympl no siempre está disponible (ValueError). Esta
+# versión NO depende del backend: 4 sliders (x1,x2,y1,y2) + vista previa con el
+# rectángulo ROJO. Ajustá hasta que envuelva la caja azul (cara de frente),
+# cargá ancho/alto reales y corré la celda 8.
 from ipywidgets import widgets
 from IPython.display import display
+import matplotlib.patches as mpatches
 
-x1_w = widgets.IntText(value=0, description="x1"); y1_w = widgets.IntText(value=0, description="y1")
-x2_w = widgets.IntText(value=W - 1, description="x2"); y2_w = widgets.IntText(value=H - 1, description="y2")
+x1_w = widgets.IntSlider(value=0, min=0, max=W - 1, description="x1")
+x2_w = widgets.IntSlider(value=W - 1, min=0, max=W - 1, description="x2")
+y1_w = widgets.IntSlider(value=0, min=0, max=H - 1, description="y1")
+y2_w = widgets.IntSlider(value=H - 1, min=0, max=H - 1, description="y2")
 ancho_w = widgets.FloatText(value=0.0, description="ancho real (m)")
 alto_w = widgets.FloatText(value=0.0, description="alto real (m)")
+_out_vista = widgets.Output()
 
-_fig, _ax = plt.subplots(figsize=(10, 8))
-_ax.imshow(img_rgb)
-_ax.set_title("Arrastrá el rectángulo sobre la CAJA AZUL (cara de frente)")
-def _onselect(_e, _r):
-    x1_w.value, y1_w.value = int(min(_e.xdata, _r.xdata)), int(min(_e.ydata, _r.ydata))
-    x2_w.value, y2_w.value = int(max(_e.xdata, _r.xdata)), int(max(_e.ydata, _r.ydata))
-    print(f"Rectángulo: x1={x1_w.value} y1={y1_w.value} x2={x2_w.value} y2={y2_w.value}")
-RectangleSelector(_ax, _onselect, useblit=False, button=[1], minspanx=5, minspany=5, interactive=False)
-plt.show()
+def _vista(_=None):
+    with _out_vista:
+        _out_vista.clear_output(wait=True)
+        _fig, _ax = plt.subplots(figsize=(10, 8))
+        _ax.imshow(img_rgb)
+        _ax.add_patch(mpatches.Rectangle((x1_w.value, y1_w.value),
+                                         x2_w.value - x1_w.value,
+                                         y2_w.value - y1_w.value,
+                                         fill=False, edgecolor="red", linewidth=2))
+        _ax.set_title("Rectángulo rojo = caja azul (cara de frente). Ajustá los sliders.")
+        plt.show()
 
-display(widgets.HBox([x1_w, y1_w, x2_w, y2_w]))
-display(widgets.HBox([ancho_w, alto_w]))
-print("Marcá la caja (o escribí x1..y2 a mano), poné ancho 0.078 y alto 0.138, y corré la celda 8.")
+for _w in (x1_w, x2_w, y1_w, y2_w):
+    _w.observe(_vista)
+_vista(None)
+display(widgets.VBox([widgets.HBox([x1_w, x2_w]), widgets.HBox([y1_w, y2_w]),
+                      _out_vista, widgets.HBox([ancho_w, alto_w])]))
+print("Ajustá los sliders; después poné ancho 0.078 y alto 0.138 y corré la celda 8.")
 """
     )
 )
@@ -332,33 +338,43 @@ print("Criterio escala: |error| < 1 % (§11.2).")
 cells.append(
     code(
         """# @title 9. Medir el caño (diámetro real en mm)
-# Arrastrá una caja APRETADA alrededor del caño, en un tramo limpio (sin codos ni
-# fittings), con el caño cruzando la imagen y el eje ~perpendicular a la cámara.
+# Igual que la celda 7 (sliders, sin backend interactivo). Ajustá el rectángulo
+# ROJO para que envuelva un TRAMO LIMPIO del caño verde (sin codos ni fittings),
+# con el caño cruzando la imagen y el eje ~perpendicular a la cámara.
 # CARGÁ EL DIÁMETRO EXTERIOR REAL del caño. Decisión 2026-10-06: asumido 25 mm para
 # esta prueba — si lo medís con calibre y da otro valor, gana el calibre. Ojo: el
 # veredicto se lee contra el número que cargás; un «1/2 pulgada» comercial mide
 # ~15.9 mm (CTS: CPVC/PEX/cobre) o ~21.3 mm (IPS: PVC); en PPR verde, Ø25 es el
 # «3/4 pulgada» comercial. El interior del caño no interviene en la prueba.
-from matplotlib.widgets import RectangleSelector
 from ipywidgets import widgets
 from IPython.display import display
+import matplotlib.patches as mpatches
 
-cx1_w = widgets.IntText(value=0, description="x1"); cy1_w = widgets.IntText(value=0, description="y1")
-cx2_w = widgets.IntText(value=W - 1, description="x2"); cy2_w = widgets.IntText(value=H - 1, description="y2")
+cx1_w = widgets.IntSlider(value=0, min=0, max=W - 1, description="x1")
+cx2_w = widgets.IntSlider(value=W - 1, min=0, max=W - 1, description="x2")
+cy1_w = widgets.IntSlider(value=0, min=0, max=H - 1, description="y1")
+cy2_w = widgets.IntSlider(value=H - 1, min=0, max=H - 1, description="y2")
 diam_w = widgets.FloatText(value=25.0, description="diámetro real (mm)")
+_out_vista2 = widgets.Output()
 
-_fig2, _ax2 = plt.subplots(figsize=(10, 8))
-_ax2.imshow(img_rgb)
-_ax2.set_title("Caja apretada sobre el caño (sin fittings)")
-def _onselect2(_e, _r):
-    cx1_w.value, cy1_w.value = int(min(_e.xdata, _r.xdata)), int(min(_e.ydata, _r.ydata))
-    cx2_w.value, cy2_w.value = int(max(_e.xdata, _r.xdata)), int(max(_e.ydata, _r.ydata))
-RectangleSelector(_ax2, _onselect2, useblit=False, button=[1], minspanx=5, minspany=5, interactive=False)
-plt.show()
+def _vista2(_=None):
+    with _out_vista2:
+        _out_vista2.clear_output(wait=True)
+        _fig2, _ax2 = plt.subplots(figsize=(10, 8))
+        _ax2.imshow(img_rgb)
+        _ax2.add_patch(mpatches.Rectangle((cx1_w.value, cy1_w.value),
+                                          cx2_w.value - cx1_w.value,
+                                          cy2_w.value - cy1_w.value,
+                                          fill=False, edgecolor="red", linewidth=2))
+        _ax2.set_title("Rectángulo rojo = tramo del caño a medir (sin fittings).")
+        plt.show()
 
-display(widgets.HBox([cx1_w, cy1_w, cx2_w, cy2_w]))
-display(widgets.HBox([diam_w]))
-print("Después de marcar (o escribir) y poner el diámetro real, corré la celda 10.")
+for _w in (cx1_w, cx2_w, cy1_w, cy2_w):
+    _w.observe(_vista2)
+_vista2(None)
+display(widgets.VBox([widgets.HBox([cx1_w, cx2_w]), widgets.HBox([cy1_w, cy2_w]),
+                      _out_vista2, widgets.HBox([diam_w])]))
+print("Ajustá el rectángulo sobre un tramo limpio del caño y corré la celda 10.")
 """
     )
 )
