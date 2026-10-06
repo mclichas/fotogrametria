@@ -881,10 +881,11 @@ ni carpeta local espejada (D10/D11).
 Repositorio (GitHub — código):
 .
 ├── AGENTS.md                     # esta memoria
-├── .opencode/skills/             # skills de proyecto (pipeline, tests)
-├── pyproject.toml                # deps, ruff, pytest
+├── .opencode/skills/             # skills de proyecto (pipeline, tests, colab, jupyter-notebooks)
+├── pyproject.toml                # deps, ruff, pytest — PENDIENTE T1 (no existe aún)
 ├── prompt para desarrollo ...md  # SDD de origen (no editar)
-├── wizard_planimetria.ipynb      # wizard de 8 pasos en Colab (D11) — GUI del producto
+├── wizard_planimetria.ipynb      # wizard de 8 pasos en Colab (D11) — GUI del producto (canónico)
+├── tools/build_wizard.py         # bootstrap del notebook: SOLO re-ejecutar para regenerar desde cero (pisa ediciones manuales)
 ├── modules/                      # código del pipeline (M1..M7, session, errors)
 ├── tests/                        # pytest, TC-MOD1..TC-MOD7
 └── docs/
@@ -1089,6 +1090,8 @@ Reglas:
 * [ ] **T1** Fijar versiones exactas en `pyproject.toml` como requirements del notebook de
       Colab (`pip install`). **Ya no hace falta instalar Python 3.12 en local**: con D11 el
       runtime es Colab, que trae 3.12.13 (§2.3, §5.1 — volver a comprobar antes de fijar).
+      Declarar `pytest` en el extra `[dev]`: la suite corre **en el runtime de Colab**
+      (D11, §11.3), no en la máquina local.
 * [ ] **T2** **Decidir el motor de reconstrucción** (ver §6): MoGe-2, COLMAP sparse + MoGe-2,
       o mantener COLMAP completo. Bloquea el diseño de M3 y M4.
       **Elemento nuevo de §6 ter:** considerar **optimización global de poses** en lugar de
