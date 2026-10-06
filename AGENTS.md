@@ -886,6 +886,7 @@ Repositorio (GitHub — código):
 ├── prompt para desarrollo ...md  # SDD de origen (no editar)
 ├── wizard_planimetria.ipynb      # wizard de 8 pasos en Colab (D11) — GUI del producto (canónico)
 ├── tools/build_wizard.py         # bootstrap del notebook: SOLO re-ejecutar para regenerar desde cero (pisa ediciones manuales)
+├── experimentos/                 # notebooks de experimentos de decisión (T3: validación de MoGe-2)
 ├── modules/                      # código del pipeline (M1..M7, session, errors)
 ├── tests/                        # pytest, TC-MOD1..TC-MOD7
 └── docs/
@@ -1099,7 +1100,9 @@ Reglas:
       de SfM en video, y su documentación dice que en interiores sus poses son *"as good or
       better"* que las de COLMAP sparse. A evaluar antes de cerrar T2.
 * [ ] **T3** Validar MoGe-2 sobre una imagen real de obra con cotas conocidas: medir error
-      real sobre un caño antes de prometer los umbrales del SDD (ver §6).
+      real sobre un caño antes de prometer los umbrales del SDD (ver §6). Notebook del
+      experimento: `experimentos/t3_moge2_validacion.ipynb` (corre en Colab; la foto va a
+      Drive, nunca a GitHub — T10: declarar el hardware en el reporte).
 * [ ] **T4** Fijar umbrales de calidad de video: `blur_threshold`, nº mínimo de matches ORB
       para declarar solapamiento válido, y el piso de solapamiento. **El solapamiento es el
       parámetro más sensible del sistema**, no el más trivial: el único precedente con
