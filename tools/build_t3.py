@@ -264,9 +264,13 @@ plt.show()
 cells.append(
     code(
         """# @title 7. Marcar el objeto de referencia (ancho y alto conocidos — D3)
-# Arrastrá el rectángulo sobre un objeto PLANO y DE FRENTE a la cámara (marco de
-# puerta, azulejo, tabla) y completá sus medidas reales en metros. Si el selector
-# no responde, escribí las coordenadas a mano en los campos.
+# El backend por defecto de Colab (inline) NO despacha eventos de mouse: la imagen
+# se ve pero el selector no responde al arrastre. %matplotlib ipympl activa figuras
+# interactivas. Cómo marcar: CLICK en una esquina de la caja azul → ARRASTRAR hasta
+# la esquina opuesta → SOLTAR. Al soltar, x1..y2 se actualizan solos (ver el print).
+# Si ipympl no estuviera instalado (raro en Colab): !pip install -q ipympl.
+# Plan B: escribí las coordenadas a mano en los campos.
+%matplotlib ipympl
 from matplotlib.widgets import RectangleSelector
 from ipywidgets import widgets
 from IPython.display import display
@@ -278,16 +282,17 @@ alto_w = widgets.FloatText(value=0.0, description="alto real (m)")
 
 _fig, _ax = plt.subplots(figsize=(10, 8))
 _ax.imshow(img_rgb)
-_ax.set_title("Rectángulo de referencia (objeto frontal, ancho + alto conocidos)")
+_ax.set_title("Arrastrá el rectángulo sobre la CAJA AZUL (cara de frente)")
 def _onselect(_e, _r):
     x1_w.value, y1_w.value = int(min(_e.xdata, _r.xdata)), int(min(_e.ydata, _r.ydata))
     x2_w.value, y2_w.value = int(max(_e.xdata, _r.xdata)), int(max(_e.ydata, _r.ydata))
+    print(f"Rectángulo: x1={x1_w.value} y1={y1_w.value} x2={x2_w.value} y2={y2_w.value}")
 RectangleSelector(_ax, _onselect, useblit=False, button=[1], minspanx=5, minspany=5, interactive=False)
 plt.show()
 
 display(widgets.HBox([x1_w, y1_w, x2_w, y2_w]))
 display(widgets.HBox([ancho_w, alto_w]))
-print("Después de marcar (o escribir) y poner ancho/alto reales, corré la celda 8.")
+print("Marcá la caja (o escribí x1..y2 a mano), poné ancho 0.078 y alto 0.138, y corré la celda 8.")
 """
     )
 )
