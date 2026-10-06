@@ -292,7 +292,9 @@ cells.append(
         """# @title 9. Medir el caño (diámetro conocido, calibre/cinta)
 # Arrastrá una caja APRETADA alrededor del caño, en un tramo limpio (sin codos ni
 # fittings), con el caño cruzando la imagen y el eje ~perpendicular a la cámara.
-# Completá el diámetro real en mm (1/2" nominal = 21.3 mm exterior).
+# Completá el diámetro EXTERIOR REAL medido con calibre en mm. Ojo: «1/2 pulgada» es
+# nominal, no el diámetro: CPVC/PEX/cobre 1/2" (CTS) ≈ 15.9 mm; PVC 1/2" (IPS) ≈ 21.3 mm.
+# El valor que cargás acá define el veredicto: medí el caño verde con calibre.
 from matplotlib.widgets import RectangleSelector
 from ipywidgets import widgets
 from IPython.display import display

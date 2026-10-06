@@ -384,7 +384,8 @@ Corrección: MoGe-3 **ya publicó pesos**. Ya no es "coming soon".
 | `Ruicheng/moge-3-vitg` | 4.7 GB | MIT |
 
 MoGe-3 ataca específicamente la estructura delgada y del detalle fino, que es exactamente el
-caso de un caño de 25 mm de radio. Es el candidato técnicamente más adecuado. Pero:
+caso de un caño delgado (un 1/2" tiene radio de ~8-11 mm). Es el candidato técnicamente
+más adecuado. Pero:
 
 * `moge-3-vitl` pesa 1.4 GB: no entra cómodamente en el disco disponible (ver R11).
 * Su dependencia `FlexGEMM` requiere GPU NVIDIA. Descartado para ejecución local aquí.
@@ -402,7 +403,8 @@ hay que medir, no suponer: validar con una imagen real de obra con cotas conocid
 and hair, and with maintaining straight and aligned structures under a significant scale
 difference between the foreground and background."*
 
-Esto es literalmente nuestro caso: un caño de 1/2" son 25 mm de radio, estructura delgada
+Esto es literalmente nuestro caso: un caño de 1/2" (diámetro exterior ~16-21 mm, radio
+~8-11 mm), estructura delgada
 en un ambiente con fondo cercano y lejano. **El riesgo conocido del candidato principal
 está confirmado por su propia documentación.** Por eso T3 no es opcional antes de escribir
 M3: hay que medir si el error del radio del caño entra en 10 mm antes de construir el resto.
@@ -493,7 +495,7 @@ compromising the dimensional accuracy of the models"*.
 
 **Lectura para el proyecto:** apps comerciales maduras, sobre un objeto grande, liso, con
 textura, en condiciones controladas, **no llegan a precisión dimensional**. Nuestro caso es
-un caño de 50 mm de diámetro, embebido en una pared, filmado a mano, sin fondo controlado.
+un caño de 1/2" (diámetro exterior ~16-21 mm), embebido en una pared, filmado a mano, sin fondo controlado.
 Es estrictamente más difícil que el de ese estudio. Este es el argumento más fuerte que
 tenemos para no esperar 10 mm por el lado de las apps.
 
@@ -536,7 +538,7 @@ Dos consecuencias:
 
 Lo que Polycam **no** abre: usa el LiDAR de ARKit. Advertencia textual de su propia
 documentación: *"resolving geometric detail less than 1-2 cm is not possible"*, y
-*"the max range of the lidar sensor is 5m"*. Un caño de 25 mm de radio está por debajo de
+*"the max range of the lidar sensor is 5m"*. Un caño de 1/2" (radio ~8-11 mm) está por debajo de
 su resolución LiDAR. Su motor no es nuestro camino.
 
 #### Conclusión
@@ -697,7 +699,7 @@ la zona degradada. **No es un compromiso simétrico.**
 Textual de ellos: *"the radius estimation accuracies for the smallest pipe was impacted
 more by the increase in the image overlap than say the largest pipe"*. Menor solapamiento no
 agrega ruido: **le saca puntos al caño chico.** Nuestro caso es el extremo de esa curva
-(25 mm de radio contra los caños de 100 mm o más de sus experimentos).
+(radio ~10 mm contra los caños de 100 mm o más de sus experimentos).
 
 Son fallas distintas con respuestas distintas. La que nos importa es un caño que no aparece,
 o cuyo radio sale mal. "Aceptar más ruido" no describe ese riesgo ni lo mitiga.
@@ -941,7 +943,7 @@ AAAAMMDD-HHMMSS_<descripcion>.<ext>
 | R12 | Latencia de MoGe-2 en CPU (~3-8 s/frame) rompe el criterio E2E de < 8 min por sí sola | **Resuelto 2026-10-06 (D11):** corre en GPU de Colab (decenas de ms/frame con FP16). El criterio E2E pasa a medirse en T4 (T10) |
 | R13 | **Baja textura del caño** produce nubes ralas: *"low texture of the pipes usually results in a very sparse point cloud"* (literatura 2023). Es el riesgo inverso al de MoGe y afecta a COLMAP/MVS. **Agravado:** 3DGS le gana a la fotogrametría justo en "reflective, low-texture", o sea que la técnica que funciona en nuestra zona de dificultad es la que no es métrica | Medir en T3 la densidad real **sobre un caño**, no la densidad global de la escena (§6, §6 ter) |
 | R14 | El precedente publicado con 5.4 mm de error de radio **exige ≥ 95 % de solapamiento** entre frames, más de lo que da un video de celular normal | Dimensionar T4 con ese número como techo. Medir el solapamiento real de la captura antes de fijar el piso. **Ojo:** el knee está en 90 %, no en 95 %. Ver §6 bis |
-| R15 | El muestreo adaptativo (más frames donde la cámara se mueve) reduce el número de frames, pero **nunca se validó con un objeto tan chico como 25 mm de radio**: su experimento usó caños industriales de 100 mm o más | El modo de falla no es "más ruido" sino **caño chico sin geometría suficiente**, que es peor y no se ve como ruido. T3 debe medir densidad **sobre el caño**, no en la escena (§6 bis) |
+| R15 | El muestreo adaptativo (más frames donde la cámara se mueve) reduce el número de frames, pero **nunca se validó con un objeto tan chico como un caño de 1/2" (radio ~8-11 mm)**: su experimento usó caños industriales de 100 mm o más | El modo de falla no es "más ruido" sino **caño chico sin geometría suficiente**, que es peor y no se ve como ruido. T3 debe medir densidad **sobre el caño**, no en la escena (§6 bis) |
 | R16 | **Apps comerciales de escaneo con celular tampoco llegan a precisión dimensional.** KIRI y Polycam, sobre un objeto de ~30 cm en condiciones controladas, dieron errores de altura de 0.72 a 3.04 mm y **fallaron el criterio dimensional** del estudio (§6 ter) | Nuestro caso es más difícil que el de ese estudio. El margen para 10 mm (D7) no es holgado, y no hay atajo por el lado de las apps. Sirve para no prometer lo que ninguna herramienta comercial entrega |
 
 ---
