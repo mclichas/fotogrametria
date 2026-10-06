@@ -4,8 +4,11 @@ data/ingest/*
 !data/ingest/README.md
 
 # Intermedios generados: desechables, se regeneran desde data/ingest.
-work/
-outputs/
+# Solo se versionan los README de estructura (resguardo del layout de Drive).
+work/*
+!work/README.md
+outputs/*
+!outputs/README.md
 *.ply
 *.ply.json
 

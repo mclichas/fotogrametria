@@ -61,6 +61,9 @@ Drive por carga manual (D10), sin Drive for Desktop.
 ### 2.2 Repositorio
 
 * Remoto: https://github.com/mclichas/fotogrametria (owner `mclichas`)
+* **Público** (verificado 2026-10-06: `git ls-remote` anónimo funciona). Consecuencia:
+  **nada de obra ni de clientes se versiona** (T11). El "resguardo" en GitHub cubre solo
+  código + notebook + READMEs de estructura (§2.3, skill `colab`).
 * Local: inicializado, rama `main`, en sincronía con `origin` (T9, 2026-10-05).
 
 ### 2.3 Entorno de ejecución: Colab como laboratorio (evaluación 2026-10-06)
@@ -167,6 +170,15 @@ Cómo se concreta:
   compartida. Cualquier operación fuera de ese alcance (otra carpeta, otra cuenta, otro
   recurso de Google) requiere **autorización explícita** antes de ejecutarse. Confirmado
   por el usuario 2026-10-06.
+* **Resguardo en GitHub:** el repo `mclichas/fotogrametria` es **público** (§2.2). Se
+  versiona: código (`modules/`, `tests/`), el notebook `wizard_planimetria.ipynb` y los
+  READMEs de estructura (`data/ingest/`, `work/`, `outputs/`). **Nunca** se sube: videos,
+  fotos, frames, nubes ni entregables de obra (T11). El notebook se abre en Colab desde
+  GitHub (`colab.research.google.com/github/mclichas/fotogrametria/blob/main/wizard_planimetria.ipynb`)
+  y los cambios vuelven por `File → Save a copy in GitHub` o por `git push` con el secret
+  `GITHUB_PAT` de Colab (celda «Resguardo en GitHub» del notebook; ver skill `colab`). Una
+  **copia de conveniencia** del notebook puede vivir en la carpeta de Drive, pero no es la
+  canónica: GitHub manda.
 * El estado del pipeline ya tenía dónde vivir: `work/<source_id>/session.json` (§12) y el
   requisito de ser **resumible por paso**. Cada paso escribe su entregable en Drive —
   frames aceptados, `CalibrationData`, nube, segmentación, cotas, `.svg`/`.json` (V1, D12) —
@@ -1065,6 +1077,8 @@ Reglas:
   (`IntProgress`) y log, nunca con variables compartidas.
 * Toda la lógica vive en `modules/` (testeable, §10); las celdas del notebook son solo
   presentación y llaman a los módulos.
+* Para operar Colab con comodidad (abrir el notebook desde GitHub, secrets, git push,
+  límites del runtime, resguardo) ver la skill `colab` de `.opencode/skills/`.
 
 ---
 
