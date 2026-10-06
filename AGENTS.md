@@ -46,7 +46,7 @@ estimación es la incertidumbre que el propio sistema reporta.** Por eso §11.1 
 | Hardware | Intel i7-10610U, 4 núcleos, 15.6 GB RAM, **GPU Intel integrada, sin NVIDIA** |
 | Disco libre | **~17.7 GB** — restricción activa (R11) |
 | COLMAP | No instalado |
-| Git | Instalado en la máquina. Repo remoto existe; **local sin inicializar** (T9) |
+| Git | Inicializado, rama `main`, remoto `mclichas/fotogrametria` (T9 completo) |
 
 ### 2.1 Hardware de la máquina de trabajo
 
@@ -58,7 +58,65 @@ máquina antes de asumirlo.
 ### 2.2 Repositorio
 
 * Remoto: https://github.com/mclichas/fotogrametria (owner `mclichas`)
-* Local: aún no inicializado. Al hacerlo, `origin` apunta a esa URL.
+* Local: inicializado, rama `main`, en sincronía con `origin` (T9, 2026-10-05).
+
+### 2.3 Entorno de ejecución: Colab como laboratorio (evaluación 2026-10-06)
+
+El usuario preguntó si el entorno no podría armar en Google Colab, por el hardware y la
+cantidad de librerías. Datos de la documentación oficial de Colab (FAQ y *runtime version
+FAQ*), verificados 2026-10-06. Google **no publica cuotas fijas**: los límites "varían con
+la demanda y el patrón de uso".
+
+| Aspecto | Colab gratuito | Máquina local |
+| :--- | :--- | :--- |
+| Python | **3.12.13** (runtime 2026.07) — exactamente D8 | 3.14.2 / 3.10.4; falta 3.12 (T1) |
+| Disco | ~100 GB, **efímero** (se borra al cerrar sesión) | 17,7 GB libres (R11) |
+| RAM | ~12,7 GB | 15,6 GB |
+| GPU | T4 15 GB VRAM, **no garantizada** | Intel integrada, sin NVIDIA (R7) |
+| PyTorch | 2.11 preinstalado | ~2 GB por bajar (R11) |
+| Sesión | máx. 12 h; ~90 min de inactividad la corta | ilimitada |
+| Datos | se suben a Google | quedan locales |
+
+**Qué resuelve:**
+
+1. **T1 deja de bloquear experimentar.** Colab ya trae Python 3.12.13, la versión que D8
+   eligió. Cero instalación.
+2. **R11 desaparece para experimentar.** PyTorch, COLMAP (~3.1 GB) y los pesos de MoGe
+   (134 MB a 2.5 GB) entran sobrados en ~100 GB. Además habilita probar
+   `moge-2-vitl-normal` (2.5 GB), hoy vetado por disco (§13.5).
+3. **R7, R3 y R12 mejoran de golpe.** Con la T4, `patch_match_stereo` de COLMAP (build
+   CUDA) queda viable: R3 pasa de "recalibrar o fuera de alcance" a **por medir**. Y los
+   tiempos del SDD (E2E < 8 min, densificación < 3 min) también pasan a "por medir".
+   Latencia de MoGe-2: de 3-8 s/frame en CPU a decenas de ms en GPU con FP16.
+4. **Sin conflicto de wheels.** En Linux/manylinux, `open3d` y `ezdxf` conviven en 3.12 sin
+   el tironeo cp314/cp313 que obligó a elegir 3.12 en Windows (§5.1).
+
+**Qué NO resuelve:**
+
+1. **D4 — el producto sigue siendo de escritorio.** El wizard Tkinter no corre en Colab
+   (VM headless, sin display). La GUI y `data/ingest` son locales. Colab puede ser un
+   motor remoto, nunca la interfaz.
+2. **R10/T11 — el bloqueo real, y es decisión del usuario.** Subir video o frames de obra a
+   Google es subir datos de cliente a un tercero. T11 está abierto. En T3 se esquiva si la
+   foto de prueba no es de un cliente (obra propia, u objeto con cota conocida).
+3. **D6 — matiz que decide el usuario.** Precedente ya registrado (§6): OpenDroneMap en VPS
+   = *"el software corre libre, la infraestructura se alquila"*. El stack de Colab (torch,
+   COLMAP, opencv, open3d) es 100 % libre, así que por esa lógica Colab sería solo
+   infraestructura. La diferencia con la VPS es que esta es de Google, que inspecciona lo
+   que sube. Ese matiz es lo que hay que decidir.
+4. **Es efímero:** `work/<source_id>/` no sobrevive a la sesión (persistir en Google Drive)
+   y los pasos largos deben poder resumirse, que ya lo exige el wizard (§12).
+5. **Los tiempos no se transfieren.** Medir T10/E2E en T4 no predice nada del i7-10610U si
+   el producto corre local. **La precisión sí se transfiere:** T3 mide error métrico, que no
+   depende del hardware; el tiempo, sí. Consecuencia: **T2 y T10 deben declarar en qué
+   hardware se midió cada cifra.**
+
+**Consecuencia para la secuencia de trabajo:** Colab adelanta T3 — se puede validar MoGe-2
+sin gastar un byte de los 17,7 GB y sin instalar Python. Si T2 y T11 salen por lo remoto, el
+diseño ya lo anticipa: §10 exige el motor detrás de una interfaz inyectable
+(`ColmapBackend`); lo mismo aplica a MoGe, con un backend que puede ser local-CPU o
+remoto-GPU. Y M1 extrae frames localmente: a la nube viajan decenas de MB de JPEGs, no el
+video de obra.
 
 ---
 
@@ -915,6 +973,7 @@ Reglas:
 * [ ] **T1** Crear venv con Python 3.12 (D8) y fijar versiones exactas en `pyproject.toml`.
       Requiere **instalar Python 3.12**: la máquina tiene 3.14.2 y 3.10.4, no 3.12.
       Las versiones están verificadas en §5.1 — volver a comprobar antes de fijar.
+      **Alternativa sin instalar nada:** Colab ya trae 3.12.13 y PyTorch (§2.3, T23).
 * [ ] **T2** **Decidir el motor de reconstrucción** (ver §6): MoGe-2, COLMAP sparse + MoGe-2,
       o mantener COLMAP completo. Bloquea el diseño de M3 y M4.
       **Elemento nuevo de §6 ter:** considerar **optimización global de poses** en lugar de
@@ -956,6 +1015,15 @@ Reglas:
       Ver §6 bis: la decisión anterior de descartarlo se basó en un dato equivocado.
       Si se usa la librería, verificar que sea el cilindro de eje + radio que necesitamos
       y no una variante de cono o elipse.
+* [ ] **T23** Decidir el **entorno de ejecución del cómputo pesado** (§2.3): local en CPU,
+      o **laboratorio en Colab** con GPU T4 (Python 3.12.13 y PyTorch preinstalados, ~100 GB
+      de disco, sin instalar nada). Colab adelanta T3 sin tocar los 17.7 GB, pero exige
+      resolver antes: **T11** (los datos de obra suben a Google — R10) y **D6** (Colab es
+      infraestructura propietaria; el precedente de la VPS en §6 dice que lo que importa es
+      que el *software* sea libre, pero es al usuario a quien le toca confirmarlo).
+      Consecuencia si se adopta: **los tiempos medidos en T4 no representan al i7-10610U**,
+      así que T10 debe declarar el hardware de cada medida. El diseño ya lo permite: §10
+      exige el motor detrás de una interfaz inyectable.
 
 ### 13.2 Mejoras de V2
 
