@@ -1149,6 +1149,21 @@ Reglas:
       real sobre un caño antes de prometer los umbrales del SDD (ver §6). Notebook del
       experimento: `experimentos/t3_moge2_validacion.ipynb` (corre en Colab; la foto va a
       Drive, nunca a GitHub — T10: declarar el hardware en el reporte).
+      **Estado 2026-10-06 (primera corrida, foto `20260914-093702_caja_azul.jpeg`):
+      INCONCLUSO.** La referencia no cumple D3 (caja "un poco inclinada" y chica: marca
+      104×140 px sobre 1280×960; la proporción en píxeles de la marca, 0.74, ni siquiera
+      coincide con la real del objeto, 0.57) y la escala métrica de MoGe-2 `vits` en esa
+      zona quedó ~2× corta: mide 195×228 mm donde el objeto es 78×138, y la profundidad
+      que da (z≈1.36 m) implica que el objeto marcaría 48×86 px, no 104×140 (z implicada
+      por la marca: 0.63–0.83 m). No se puede separar cuánto es la captura y cuánto el
+      modelo con esta foto sola. **Pendiente:** repetir con una foto donde la caja ocupe
+      más superficie del encuadre y esté DE FRENTE a la cámara (D3) — el usuario tiene
+      fotos así tomadas. Las celdas 6/8/8bis ya corrigen la convención de intrinsics
+      (verificada en el fuente, §6): `fx_px = K[0,0]*W`, `fy_px = K[1,1]*H`, `infer` no
+      redimensiona, origen del point map en el centro de la imagen con `+v` hacia abajo.
+      Hardware de la corrida (T10): Colab CPU-only, torch 2.11.0+cpu, Python 3.13 del
+      runtime (contrasta con 3.12.13 que cita AGENTS — revisar), imagen 1280×960,
+      fx≈843 px, FOV 74.4°, modelo `moge-2-vits-normal`.
 * [ ] **T4** Fijar umbrales de calidad de video: `blur_threshold`, nº mínimo de matches ORB
       para declarar solapamiento válido, y el piso de solapamiento. **El solapamiento es el
       parámetro más sensible del sistema**, no el más trivial: el único precedente con
