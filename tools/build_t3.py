@@ -340,31 +340,40 @@ print("Criterio escala: |error| < 1 % (§11.2).")
 # ---------------------------------------------------------------- celda 8bis
 cells.append(
     code(
-        """# @title 8bis. Medición corregida por el plano de la cara (tolera inclinación leve)
-# La celda 8 asume una cara FRONTAL: si la caja está en ángulo, la distancia 3D
-# entre las esquinas del bbox queda inflada (las esquinas caen a profundidades
-# distintas). Acá se ajusta un plano a los puntos del rectángulo marcado y se mide
-# el ancho/alto de la región a lo largo de los ejes de imagen corregidos por la
-# pendiente del plano (que codifica la inclinación). Con cara frontal da lo mismo
-# que la celda 8. NO corrige rotación en el plano de la imagen (caja "tumbada").
+        """# 8bis. Medicion corregida por el plano de la cara (robusta a outliers)
+# La celda 8 asume cara FRONTAL; con la caja en angulo la distancia 3D entre
+# esquinas del bbox se infla. La primera version de esta celda ajustaba el plano
+# sobre TODOS los puntos y un puñado de outliers de profundidad (pared/fondo
+# lejano en las esquinas del bbox, o predicciones basura de MoGe en bordes)
+# dominaba el ajuste (sigma de 5 m, ancho de 279 m). Esta version recorta la
+# banda central de profundidad (percentiles 5-95) antes de ajustar el plano.
 _K = np.asarray(intrinsics) if intrinsics is not None else None
 _fx = float(_K[0, 0]) if _K is not None else W / (2 * np.tan(np.deg2rad(60) / 2))
 _fy = float(_K[1, 1]) if _K is not None else _fx
+print(f"intrinsics usadas: fx={_fx:.0f} px, fy={_fy:.0f} px")
 
 _sub = pts[y1:y2, x1:x2].reshape(-1, 3)
 _fin = _sub[np.isfinite(_sub).all(axis=1)]
 assert len(_fin) > 10, "Pocos puntos finitos en la caja: corré la celda 6 de nuevo."
-_cen = _fin.mean(axis=0)
-_U, _S, _Vt = np.linalg.svd(_fin - _cen, full_matrices=False)
+_zall = _fin[:, 2]
+_p5, _p50, _p95 = np.percentile(_zall, [5, 50, 95])
+print(f"z en la caja: p5={_p5*1000:.0f} mm | mediana={_p50*1000:.0f} mm | p95={_p95*1000:.0f} mm | n={len(_fin)}")
+
+_band = (_zall >= _p5) & (_zall <= _p95)
+_clean = _fin[_band]
+print(f"puntos tras recorte p5-p95: {len(_clean)}/{len(_fin)}")
+
+_cen = _clean.mean(axis=0)
+_U, _S, _Vt = np.linalg.svd(_clean - _cen, full_matrices=False)
 _n = _Vt[-1]
 if _n[2] < 0:
     _n = -_n
 print(f"normal del plano de la cara: ({_n[0]:.4f}, {_n[1]:.4f}, {_n[2]:.4f})")
-print(f"residuo del ajuste (sigma): {_S[-1] * 1000:.1f} mm  (chico ⇒ superficie plana)")
+print(f"residuo del ajuste (sigma): {_S[-1] * 1000:.1f} mm  (plano valido si < ~20 mm)")
 
-_z0 = float(_cen[2])
+_z0 = float(np.median(_clean[:, 2]))
 if abs(_n[2]) < 1e-4:
-    print("⚠ vista rasante: no se puede corregir por plano; usá el resultado de la celda 8.")
+    print("vista rasante: no se puede corregir por plano; usá el resultado de la celda 8.")
 else:
     _px3d_x = (_z0 / _fx) * np.sqrt(1 + (_n[0] / _n[2]) ** 2)
     _px3d_y = (_z0 / _fy) * np.sqrt(1 + (_n[1] / _n[2]) ** 2)
@@ -372,9 +381,9 @@ else:
     alto_plano = _px3d_y * (y2 - y1)
     err_wp = (ancho_plano - ancho_w.value) / ancho_w.value * 100
     err_hp = (alto_plano - alto_w.value) / alto_w.value * 100
-    print(f"ancho (plano) = {ancho_plano * 1000:.1f} mm (real {ancho_w.value * 1000:.0f} mm) → {err_wp:+.2f} %")
-    print(f"alto  (plano) = {alto_plano * 1000:.1f} mm (real {alto_w.value * 1000:.0f} mm) → {err_hp:+.2f} %")
-    print("Criterio escala: |error| < 1 % (§11.2). Comparar con la celda 8: si acá baja y allá no, el desvío era la inclinación.")
+    print(f"ancho (plano) = {ancho_plano * 1000:.1f} mm (real {ancho_w.value * 1000:.0f} mm) -> {err_wp:+.2f} %")
+    print(f"alto  (plano) = {alto_plano * 1000:.1f} mm (real {alto_w.value * 1000:.0f} mm) -> {err_hp:+.2f} %")
+    print("Criterio escala: |error| < 1 %. Comparar con la celda 8.")
 """
     )
 )
