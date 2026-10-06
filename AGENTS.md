@@ -402,7 +402,15 @@ Detalles que importan: (1) `from_pretrained` **no** acepta `dtype=`/`device=`
 por 255** (idéntico a `moge/scripts/infer.py` del commit); (4) `infer` con
 `apply_mask=True` (default) pone `torch.inf` donde la máscara es falsa: para medir
 distancias sobre el point map hay que usar `apply_mask=False`; (5) `normal` es
-singular (`out["normal"]`), no `normals`.
+singular (`out["normal"]`), no `normals`; (6) `infer` **no** redimensiona: el point
+map sale a la resolución de entrada (mismo H×W que la imagen que se le pasó); (7)
+las `intrinsics` vienen **normalizadas** (fuente directa: `moge/model/v2.py`,
+`infer()` en `b942f00bd`): `cx=cy=0.5` y `fx`/`fy` relativos a la media diagonal;
+para pasar a píxeles hay que multiplicar por el tamaño de la imagen:
+`fx_px = K[0,0]*W`, `fy_px = K[1,1]*H` (sanity check: fx_px ≈ fy_px si los píxeles
+son cuadrados). Usarlas crudas explota la conversión px→m por ~100× — lo pagamos
+en T3 (celda 8bis: `fx=1 px` → ancho medido de 249 m en un baño). El valor que
+llega en `K[0,0]` ≈ 0.625 típicamente (depende del FOV recuperado).
 
 ### MoGe-3 — actualizar la evaluación anterior
 

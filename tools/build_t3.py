@@ -341,16 +341,22 @@ print("Criterio escala: |error| < 1 % (§11.2).")
 cells.append(
     code(
         """# 8bis. Medicion corregida por el plano de la cara (robusta a outliers)
-# La celda 8 asume cara FRONTAL; con la caja en angulo la distancia 3D entre
-# esquinas del bbox se infla. La primera version de esta celda ajustaba el plano
-# sobre TODOS los puntos y un puñado de outliers de profundidad (pared/fondo
-# lejano en las esquinas del bbox, o predicciones basura de MoGe en bordes)
-# dominaba el ajuste (sigma de 5 m, ancho de 279 m). Esta version recorta la
-# banda central de profundidad (percentiles 5-95) antes de ajustar el plano.
+# Arreglos 2026-10-06 (verificado contra moge/model/v2.py, infer() en b942f00bd):
+#  1) intrinsics de MoGe vienen NORMALIZADAS (cx=cy=0.5, fx/fy relativos a la media
+#     diagonal): para pasar a px hay que multiplicar por el tamano de la imagen:
+#     fx_px = K[0,0]*W, fy_px = K[1,1]*H. Usarlas crudas explotaba la medida por
+#     ~100x (fx=1 px -> ancho de 249 m en un bano).
+#  2) el sigma del ajuste era la ultima singular value SIN normalizar por sqrt(n):
+#     ahora se imprime el residuo RMS real del plano.
 _K = np.asarray(intrinsics) if intrinsics is not None else None
-_fx = float(_K[0, 0]) if _K is not None else W / (2 * np.tan(np.deg2rad(60) / 2))
-_fy = float(_K[1, 1]) if _K is not None else _fx
-print(f"intrinsics usadas: fx={_fx:.0f} px, fy={_fy:.0f} px")
+_fx_norm = float(_K[0, 0]) if _K is not None else 1.0
+_fy_norm = float(_K[1, 1]) if _K is not None else _fx_norm
+_fx_px = _fx_norm * W
+_fy_px = _fy_norm * H
+print(f"intrinsics normalizadas: fx={_fx_norm:.4f}, fy={_fy_norm:.4f}")
+print(f"=> en px: fx_px={_fx_px:.0f}, fy_px={_fy_px:.0f}  (consistentes si ~iguales)")
+_fov_ang = np.degrees(2 * np.arctan(W / (2 * _fx_px)))
+print(f"=> FOV horizontal implicito: {_fov_ang:.1f} deg")
 
 _sub = pts[y1:y2, x1:x2].reshape(-1, 3)
 _fin = _sub[np.isfinite(_sub).all(axis=1)]
@@ -368,22 +374,32 @@ _U, _S, _Vt = np.linalg.svd(_clean - _cen, full_matrices=False)
 _n = _Vt[-1]
 if _n[2] < 0:
     _n = -_n
+_sigma_rms = _S[-1] / np.sqrt(len(_clean))
 print(f"normal del plano de la cara: ({_n[0]:.4f}, {_n[1]:.4f}, {_n[2]:.4f})")
-print(f"residuo del ajuste (sigma): {_S[-1] * 1000:.1f} mm  (plano valido si < ~20 mm)")
+print(f"residuo RMS del plano: {_sigma_rms * 1000:.1f} mm  (plano valido si < ~20 mm)")
 
 _z0 = float(np.median(_clean[:, 2]))
 if abs(_n[2]) < 1e-4:
     print("vista rasante: no se puede corregir por plano; usá el resultado de la celda 8.")
 else:
-    _px3d_x = (_z0 / _fx) * np.sqrt(1 + (_n[0] / _n[2]) ** 2)
-    _px3d_y = (_z0 / _fy) * np.sqrt(1 + (_n[1] / _n[2]) ** 2)
+    _px3d_x = (_z0 / _fx_px) * np.sqrt(1 + (_n[0] / _n[2]) ** 2)
+    _px3d_y = (_z0 / _fy_px) * np.sqrt(1 + (_n[1] / _n[2]) ** 2)
     ancho_plano = _px3d_x * (x2 - x1)
     alto_plano = _px3d_y * (y2 - y1)
     err_wp = (ancho_plano - ancho_w.value) / ancho_w.value * 100
     err_hp = (alto_plano - alto_w.value) / alto_w.value * 100
     print(f"ancho (plano) = {ancho_plano * 1000:.1f} mm (real {ancho_w.value * 1000:.0f} mm) -> {err_wp:+.2f} %")
     print(f"alto  (plano) = {alto_plano * 1000:.1f} mm (real {alto_w.value * 1000:.0f} mm) -> {err_hp:+.2f} %")
-    print("Criterio escala: |error| < 1 %. Comparar con la celda 8.")
+    print("Criterio escala: |error| < 1 %.")
+
+    # Autochequeos de coherencia interna (no dependen de la verdad, solo de MoGe):
+    _r_real = ancho_w.value / alto_w.value
+    _r_pred = ancho_plano / alto_plano
+    print(f"aspecto real {_r_real:.3f} vs predicho {_r_pred:.3f}  (si difieren mucho, la zona no es un rectangulo frontoparalelo)")
+    _pxmm = max(_fx_px, _fy_px) / _z0
+    _w_exp = ancho_w.value * 1000 * _pxmm
+    _h_exp = alto_w.value * 1000 * _pxmm
+    print(f"a z0={_z0*1000:.0f} mm: el objeto real deberia proyectar {_w_exp:.0f} x {_h_exp:.0f} px pero marcaste {x2-x1} x {y2-y1} px")
 """
     )
 )
